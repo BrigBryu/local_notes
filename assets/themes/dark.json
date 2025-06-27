@@ -1,0 +1,20 @@
+{
+  "name": "Dark Theme",
+  "primary": "#3b82f6",
+  "primaryVariant": "#2563eb",
+  "secondary": "#8b5cf6",
+  "secondaryVariant": "#7c3aed",
+  "surface": "#1e293b",
+  "background": "#0f172a",
+  "error": "#ef4444",
+  "onPrimary": "#ffffff",
+  "onSecondary": "#ffffff",
+  "onSurface": "#e2e8f0",
+  "onBackground": "#cbd5e1",
+  "onError": "#ffffff",
+  "accent": "#10b981",
+  "divider": "#334155",
+  "shadow": "#020617",
+  "disabled": "#64748b",
+  "hint": "#64748b"
+}

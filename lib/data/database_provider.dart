@@ -1,5 +1,5 @@
 import 'dart:io';
-import 'package:path/path.dart';
+import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
 import '../domain/note.dart';
@@ -23,10 +23,10 @@ class DatabaseProvider {
   
   Future<Database> _initDatabase() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
-    final path = join(documentsDirectory.path, _databaseName);
+    final dbPath = path.join(documentsDirectory.path, _databaseName);
     
     return await openDatabase(
-      path,
+      dbPath,
       version: _databaseVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
@@ -151,8 +151,8 @@ class DatabaseProvider {
   
   Future<void> deleteDatabase() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
-    final path = join(documentsDirectory.path, _databaseName);
-    final file = File(path);
+    final dbPath = path.join(documentsDirectory.path, _databaseName);
+    final file = File(dbPath);
     if (await file.exists()) {
       await file.delete();
     }

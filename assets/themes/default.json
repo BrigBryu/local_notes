@@ -1,0 +1,20 @@
+{
+  "name": "Default Theme",
+  "primary": "#2563eb",
+  "primaryVariant": "#1d4ed8",
+  "secondary": "#7c3aed",
+  "secondaryVariant": "#6d28d9",
+  "surface": "#ffffff",
+  "background": "#f8fafc",
+  "error": "#dc2626",
+  "onPrimary": "#ffffff",
+  "onSecondary": "#ffffff",
+  "onSurface": "#1e293b",
+  "onBackground": "#334155",
+  "onError": "#ffffff",
+  "accent": "#059669",
+  "divider": "#e2e8f0",
+  "shadow": "#64748b",
+  "disabled": "#94a3b8",
+  "hint": "#64748b"
+}
