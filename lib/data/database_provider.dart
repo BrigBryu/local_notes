@@ -6,7 +6,7 @@ import '../domain/note.dart';
 
 class DatabaseProvider {
   static const String _databaseName = 'notes.db';
-  static const int _databaseVersion = 1;
+  static const int _databaseVersion = 2;
   
   static const String tableNotes = 'notes';
   static const String tableFts = 'notes_fts';
@@ -75,6 +75,9 @@ class DatabaseProvider {
   }
   
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Version 2: No schema changes needed, bodyMd field name stays the same in DB for compatibility
+    }
   }
   
   Future<int> insertNote(Note note) async {
@@ -149,6 +152,18 @@ class DatabaseProvider {
     }
   }
   
+  Future<int> getNextUnnamedIndex() async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT MAX(CAST(SUBSTR(title, 13) AS INTEGER)) as max_index 
+      FROM $tableNotes 
+      WHERE title LIKE 'Unnamed Note %'
+    ''');
+    
+    final maxIndex = result.first['max_index'] as int?;
+    return (maxIndex ?? 0) + 1;
+  }
+
   Future<void> deleteDatabase() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final dbPath = path.join(documentsDirectory.path, _databaseName);

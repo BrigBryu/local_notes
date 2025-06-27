@@ -39,7 +39,7 @@ void main() {
       final testNote = Note(
         id: 1,
         title: 'Test Note',
-        bodyMd: '# Hello World\n\nThis is **bold** text.',
+        body: '# Hello World\n\nThis is **bold** text.',
         tags: ['test', 'markdown'],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),

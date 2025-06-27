@@ -1,7 +1,7 @@
 class Note {
   final int? id;
   final String title;
-  final String bodyMd;
+  final String body;
   final List<String> tags;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -9,7 +9,7 @@ class Note {
   const Note({
     this.id,
     required this.title,
-    required this.bodyMd,
+    required this.body,
     required this.tags,
     required this.createdAt,
     required this.updatedAt,
@@ -18,7 +18,7 @@ class Note {
   Note copyWith({
     int? id,
     String? title,
-    String? bodyMd,
+    String? body,
     List<String>? tags,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -26,7 +26,7 @@ class Note {
     return Note(
       id: id ?? this.id,
       title: title ?? this.title,
-      bodyMd: bodyMd ?? this.bodyMd,
+      body: body ?? this.body,
       tags: tags ?? this.tags,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
@@ -37,7 +37,7 @@ class Note {
     return {
       'id': id,
       'title': title,
-      'body_md': bodyMd,
+      'body_md': body,
       'tags': tags.join(','),
       'created_at': createdAt.millisecondsSinceEpoch,
       'updated_at': updatedAt.millisecondsSinceEpoch,
@@ -48,7 +48,7 @@ class Note {
     return Note(
       id: map['id']?.toInt(),
       title: map['title'] ?? '',
-      bodyMd: map['body_md'] ?? '',
+      body: map['body_md'] ?? '',
       tags: (map['tags'] as String?)?.split(',').where((tag) => tag.isNotEmpty).toList() ?? [],
       createdAt: DateTime.fromMillisecondsSinceEpoch(map['created_at']),
       updatedAt: DateTime.fromMillisecondsSinceEpoch(map['updated_at']),
@@ -57,7 +57,7 @@ class Note {
 
   @override
   String toString() {
-    return 'Note{id: $id, title: $title, bodyMd: $bodyMd, tags: $tags, createdAt: $createdAt, updatedAt: $updatedAt}';
+    return 'Note{id: $id, title: $title, body: $body, tags: $tags, createdAt: $createdAt, updatedAt: $updatedAt}';
   }
 
   @override
@@ -66,7 +66,7 @@ class Note {
     return other is Note &&
         other.id == id &&
         other.title == title &&
-        other.bodyMd == bodyMd &&
+        other.body == body &&
         other.tags.length == tags.length &&
         other.tags.every((tag) => tags.contains(tag)) &&
         other.createdAt == createdAt &&
@@ -77,7 +77,7 @@ class Note {
   int get hashCode {
     return id.hashCode ^
         title.hashCode ^
-        bodyMd.hashCode ^
+        body.hashCode ^
         tags.hashCode ^
         createdAt.hashCode ^
         updatedAt.hashCode;

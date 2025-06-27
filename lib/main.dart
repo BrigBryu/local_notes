@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/theme_controller.dart';
-import 'features/editor/note_editor_page.dart';
+import 'features/editor/plain_text_editor_page.dart';
 import 'providers/notes_repository.dart';
 
 void main() {
@@ -143,10 +143,10 @@ class NotesHomePage extends ConsumerWidget {
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (note.bodyMd.isNotEmpty) ...[
+                if (note.body.isNotEmpty) ..[
                   const SizedBox(height: 4),
                   Text(
-                    note.bodyMd.replaceAll(RegExp(r'[#*`\[\]()~_-]'), ''),
+                    note.body,
                     style: TextStyle(color: palette.onBackground),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
@@ -211,7 +211,7 @@ class NotesHomePage extends ConsumerWidget {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => NoteEditorPage(
+        builder: (context) => PlainTextEditorPage(
           noteId: note?.id,
           initialNote: note,
         ),

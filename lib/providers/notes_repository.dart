@@ -69,6 +69,14 @@ class NotesRepository extends AsyncNotifier<List<Note>> {
       state = AsyncValue.error(error, stackTrace);
     }
   }
+
+  Future<int> getNextUnnamedIndex() async {
+    try {
+      return await _databaseProvider.getNextUnnamedIndex();
+    } catch (error) {
+      rethrow;
+    }
+  }
 }
 
 final notesRepositoryProvider = AsyncNotifierProvider<NotesRepository, List<Note>>(() {

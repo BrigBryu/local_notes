@@ -141,6 +141,18 @@ class TestDatabaseProvider {
     
     return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
   }
+
+  Future<int> getNextUnnamedIndex() async {
+    final db = await database;
+    final result = await db.rawQuery('''
+      SELECT MAX(CAST(SUBSTR(title, 13) AS INTEGER)) as max_index 
+      FROM notes 
+      WHERE title LIKE 'Unnamed Note %'
+    ''');
+    
+    final maxIndex = result.first['max_index'] as int?;
+    return (maxIndex ?? 0) + 1;
+  }
 }
 
 void main() {
@@ -163,7 +175,7 @@ void main() {
     test('should insert and retrieve a note', () async {
       final note = Note(
         title: 'Test Note',
-        bodyMd: 'This is a test note content.',
+        body: 'This is a test note content.',
         tags: ['test', 'flutter'],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -175,13 +187,13 @@ void main() {
       final retrievedNote = await databaseProvider.getNoteById(id);
       expect(retrievedNote, isNotNull);
       expect(retrievedNote!.title, equals(note.title));
-      expect(retrievedNote.bodyMd, equals(note.bodyMd));
+      expect(retrievedNote.body, equals(note.body));
     });
 
     test('should update a note', () async {
       final note = Note(
         title: 'Original Title',
-        bodyMd: 'Original content',
+        body: 'Original content',
         tags: ['original'],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -203,7 +215,7 @@ void main() {
     test('should delete a note', () async {
       final note = Note(
         title: 'Note to Delete',
-        bodyMd: 'This note will be deleted.',
+        body: 'This note will be deleted.',
         tags: ['delete'],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -239,7 +251,7 @@ void main() {
         
         final note = Note(
           title: title,
-          bodyMd: bodyContent,
+          body: bodyContent,
           tags: List.generate(
             1 + random.nextInt(3), 
             (index) => words[random.nextInt(words.length)]
@@ -284,21 +296,21 @@ void main() {
       final notes = [
         Note(
           title: 'Flutter Development Guide',
-          bodyMd: 'Learn how to build mobile apps with Flutter framework.',
+          body: 'Learn how to build mobile apps with Flutter framework.',
           tags: ['flutter', 'mobile'],
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         ),
         Note(
           title: 'Dart Programming',
-          bodyMd: 'Master Dart language for Flutter development.',
+          body: 'Master Dart language for Flutter development.',
           tags: ['dart', 'programming'],
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
         ),
         Note(
           title: 'Database Design',
-          bodyMd: 'SQLite database optimization techniques.',
+          body: 'SQLite database optimization techniques.',
           tags: ['database', 'sqlite'],
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
@@ -326,7 +338,7 @@ void main() {
     test('should handle empty search gracefully', () async {
       final note = Note(
         title: 'Test Note',
-        bodyMd: 'Content',
+        body: 'Content',
         tags: ['test'],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -339,6 +351,46 @@ void main() {
 
       final whitespaceResults = await databaseProvider.searchNotes('   ');
       expect(whitespaceResults.length, equals(1));
+    });
+
+    test('should generate correct unnamed note indices', () async {
+      // Test with no existing unnamed notes
+      final firstIndex = await databaseProvider.getNextUnnamedIndex();
+      expect(firstIndex, equals(1));
+
+      // Add some unnamed notes
+      await databaseProvider.insertNote(Note(
+        title: 'Unnamed Note 1',
+        body: 'Content 1',
+        tags: [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ));
+
+      await databaseProvider.insertNote(Note(
+        title: 'Unnamed Note 3',
+        body: 'Content 3',
+        tags: [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ));
+
+      // Should return 4 (one more than the highest existing index)
+      final nextIndex = await databaseProvider.getNextUnnamedIndex();
+      expect(nextIndex, equals(4));
+
+      // Add a regular note (shouldn't affect unnamed note count)
+      await databaseProvider.insertNote(Note(
+        title: 'Regular Note',
+        body: 'Regular content',
+        tags: [],
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      ));
+
+      // Should still return 4
+      final unchangedIndex = await databaseProvider.getNextUnnamedIndex();
+      expect(unchangedIndex, equals(4));
     });
   });
 }
