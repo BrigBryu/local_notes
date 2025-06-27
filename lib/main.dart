@@ -144,7 +144,7 @@ class NotesHomePage extends ConsumerWidget {
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (note.body.isNotEmpty) ..[
+                if (note.body.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
                     note.body,
