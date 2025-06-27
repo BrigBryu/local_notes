@@ -21,6 +21,12 @@ class ColorPalette {
   final Color shadow;
   final Color disabled;
   final Color hint;
+  final Color? red;
+  final Color? green;
+  final Color? yellow;
+  final Color? blue;
+  final Color? magenta;
+  final Color? cyan;
 
   const ColorPalette({
     required this.name,
@@ -41,6 +47,12 @@ class ColorPalette {
     required this.shadow,
     required this.disabled,
     required this.hint,
+    this.red,
+    this.green,
+    this.yellow,
+    this.blue,
+    this.magenta,
+    this.cyan,
   });
 
   static Future<ColorPalette> fromAsset(String assetPath) async {
@@ -66,6 +78,12 @@ class ColorPalette {
       shadow: _colorFromHex(json['shadow'] as String),
       disabled: _colorFromHex(json['disabled'] as String),
       hint: _colorFromHex(json['hint'] as String),
+      red: json['red'] != null ? _colorFromHex(json['red'] as String) : null,
+      green: json['green'] != null ? _colorFromHex(json['green'] as String) : null,
+      yellow: json['yellow'] != null ? _colorFromHex(json['yellow'] as String) : null,
+      blue: json['blue'] != null ? _colorFromHex(json['blue'] as String) : null,
+      magenta: json['magenta'] != null ? _colorFromHex(json['magenta'] as String) : null,
+      cyan: json['cyan'] != null ? _colorFromHex(json['cyan'] as String) : null,
     );
   }
 
@@ -96,6 +114,12 @@ class ColorPalette {
       'shadow': '#${shadow.toARGB32().toRadixString(16).substring(2)}',
       'disabled': '#${disabled.toARGB32().toRadixString(16).substring(2)}',
       'hint': '#${hint.toARGB32().toRadixString(16).substring(2)}',
+      if (red != null) 'red': '#${red!.toARGB32().toRadixString(16).substring(2)}',
+      if (green != null) 'green': '#${green!.toARGB32().toRadixString(16).substring(2)}',
+      if (yellow != null) 'yellow': '#${yellow!.toARGB32().toRadixString(16).substring(2)}',
+      if (blue != null) 'blue': '#${blue!.toARGB32().toRadixString(16).substring(2)}',
+      if (magenta != null) 'magenta': '#${magenta!.toARGB32().toRadixString(16).substring(2)}',
+      if (cyan != null) 'cyan': '#${cyan!.toARGB32().toRadixString(16).substring(2)}',
     };
   }
 
@@ -120,7 +144,13 @@ class ColorPalette {
         other.divider == divider &&
         other.shadow == shadow &&
         other.disabled == disabled &&
-        other.hint == hint;
+        other.hint == hint &&
+        other.red == red &&
+        other.green == green &&
+        other.yellow == yellow &&
+        other.blue == blue &&
+        other.magenta == magenta &&
+        other.cyan == cyan;
   }
 
   @override
@@ -142,6 +172,12 @@ class ColorPalette {
         divider.hashCode ^
         shadow.hashCode ^
         disabled.hashCode ^
-        hint.hashCode;
+        hint.hashCode ^
+        red.hashCode ^
+        green.hashCode ^
+        yellow.hashCode ^
+        blue.hashCode ^
+        magenta.hashCode ^
+        cyan.hashCode;
   }
 }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'color_palette.dart';
 import 'app_theme.dart';
+import 'theme_registry.dart';
 
 class ThemeState {
   final ColorPalette palette;
@@ -30,13 +31,7 @@ class ThemeState {
 
 class ThemeController extends StateNotifier<ThemeState> {
   static const String _themePreferenceKey = 'selected_theme';
-  static const String _defaultThemePath = 'assets/themes/default.json';
-  
-  static const Map<String, String> availableThemes = {
-    'light': 'assets/themes/light.json',
-    'dark': 'assets/themes/dark.json',
-    'default': 'assets/themes/default.json',
-  };
+  static const String _defaultThemeId = 'vampire';
 
   ThemeController() : super(ThemeState(
     palette: _getDefaultPalette(),
@@ -73,17 +68,9 @@ class ThemeController extends StateNotifier<ThemeState> {
   Future<void> _loadTheme() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedTheme = prefs.getString(_themePreferenceKey) ?? 'default';
+      final savedThemeId = prefs.getString(_themePreferenceKey) ?? _defaultThemeId;
       
-      final themePath = availableThemes[savedTheme] ?? _defaultThemePath;
-      final palette = await ColorPalette.fromAsset(themePath);
-      final themeData = AppTheme.fromColorPalette(palette);
-
-      state = ThemeState(
-        palette: palette,
-        themeData: themeData,
-        isLoading: false,
-      );
+      await loadById(savedThemeId, persist: false);
     } catch (e) {
       // Fallback to default if loading fails
       final defaultPalette = _getDefaultPalette();
@@ -95,19 +82,23 @@ class ThemeController extends StateNotifier<ThemeState> {
     }
   }
 
-  Future<void> setTheme(String themeKey) async {
-    if (!availableThemes.containsKey(themeKey)) return;
+  Future<void> loadById(String themeId, {bool persist = true}) async {
+    final themeInfo = kThemeRegistry.firstWhere(
+      (theme) => theme.id == themeId,
+      orElse: () => kThemeRegistry.firstWhere((theme) => theme.id == _defaultThemeId),
+    );
 
     try {
       state = state.copyWith(isLoading: true);
       
-      final themePath = availableThemes[themeKey]!;
-      final palette = await ColorPalette.fromAsset(themePath);
+      final palette = await ColorPalette.fromAsset(themeInfo.assetPath);
       final themeData = AppTheme.fromColorPalette(palette);
 
-      // Save preference
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_themePreferenceKey, themeKey);
+      // Save preference if requested
+      if (persist) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_themePreferenceKey, themeId);
+      }
 
       state = ThemeState(
         palette: palette,
@@ -117,7 +108,14 @@ class ThemeController extends StateNotifier<ThemeState> {
     } catch (e) {
       // Revert loading state on error
       state = state.copyWith(isLoading: false);
+      rethrow;
     }
+  }
+
+  @deprecated
+  Future<void> setTheme(String themeKey) async {
+    // Backward compatibility mapping
+    await loadById(themeKey);
   }
 
   Future<void> setCustomPalette(ColorPalette palette) async {
@@ -136,14 +134,21 @@ class ThemeController extends StateNotifier<ThemeState> {
     }
   }
 
-  String get currentThemeKey {
-    for (final entry in availableThemes.entries) {
-      if (entry.value.contains(state.palette.name.toLowerCase())) {
-        return entry.key;
+  String get currentThemeId {
+    for (final themeInfo in kThemeRegistry) {
+      if (themeInfo.assetPath.contains(state.palette.name.toLowerCase().replaceAll(' ', '-'))) {
+        return themeInfo.id;
       }
     }
-    return 'default';
+    return _defaultThemeId;
   }
+
+  String get currentThemeName {
+    return state.palette.name;
+  }
+
+  @deprecated
+  String get currentThemeKey => currentThemeId;
 
   bool get isDarkTheme {
     return state.palette.background.computeLuminance() < 0.5;

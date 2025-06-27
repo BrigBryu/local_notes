@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/theme_controller.dart';
 import 'features/editor/plain_text_editor_page.dart';
 import 'providers/notes_repository.dart';
+import 'settings/theme_gallery_page.dart';
 
 void main() {
   runApp(const ProviderScope(child: LocalNotesApp()));
@@ -49,8 +50,8 @@ class NotesHomePage extends ConsumerWidget {
         actions: [
           IconButton(
             icon: Icon(Icons.palette, color: palette.accent),
-            onPressed: () => _showThemeSelector(context, ref),
-            tooltip: 'Change Theme',
+            onPressed: () => _navigateToThemeGallery(context),
+            tooltip: 'Themes',
           ),
         ],
       ),
@@ -219,42 +220,11 @@ class NotesHomePage extends ConsumerWidget {
     );
   }
 
-  void _showThemeSelector(BuildContext context, WidgetRef ref) {
-    final palette = ref.read(currentPaletteProvider);
-    
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select Theme'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('Light'),
-              leading: Icon(Icons.light_mode, color: palette.accent),
-              onTap: () {
-                ref.read(themeControllerProvider.notifier).setTheme('light');
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              title: const Text('Dark'),
-              leading: Icon(Icons.dark_mode, color: palette.accent),
-              onTap: () {
-                ref.read(themeControllerProvider.notifier).setTheme('dark');
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              title: const Text('Default'),
-              leading: Icon(Icons.brightness_auto, color: palette.accent),
-              onTap: () {
-                ref.read(themeControllerProvider.notifier).setTheme('default');
-                Navigator.pop(context);
-              },
-            ),
-          ],
-        ),
+  void _navigateToThemeGallery(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => const ThemeGalleryPage(),
       ),
     );
   }
