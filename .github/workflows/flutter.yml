@@ -1,0 +1,100 @@
+name: Flutter CI
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.22.x'
+        channel: 'stable'
+    
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Verify formatting
+      run: dart format --output=none --set-exit-if-changed .
+    
+    - name: Analyze project source
+      run: flutter analyze
+    
+    - name: Run unit tests
+      run: flutter test --coverage
+    
+    - name: Run performance benchmark
+      run: |
+        cd tool
+        dart run seed_and_benchmark.dart
+    
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        file: coverage/lcov.info
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.22.x'
+        channel: 'stable'
+    
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Build APK
+      run: flutter build apk --release
+    
+    - name: Build iOS (dry run)
+      run: flutter build ios --release --no-codesign
+    
+    - name: Build Web
+      run: flutter build web --release
+    
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: app-release.apk
+        path: build/app/outputs/flutter-apk/app-release.apk
+
+  integration-test:
+    runs-on: macos-latest
+    needs: test
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.22.x'
+        channel: 'stable'
+    
+    - name: Install dependencies
+      run: flutter pub get
+    
+    - name: Launch iOS Simulator
+      run: |
+        xcrun simctl list devices available
+        xcrun simctl boot "iPhone 15" || true
+    
+    - name: Run integration tests (iOS)
+      run: flutter test integration_test/ --device-id=ios-simulator
+      continue-on-error: true
