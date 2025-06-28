@@ -81,7 +81,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage>
       // Create new note
       _setNoteData(Note(
         title: '',
-        bodyMd: '',
+        body: '',
         tags: [],
         createdAt: DateTime.now(),
         updatedAt: DateTime.now(),
@@ -93,7 +93,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage>
     setState(() {
       _currentNote = note;
       _titleController.text = note.title;
-      _bodyController.text = note.bodyMd;
+      _bodyController.text = note.body;
       _tagsController.text = note.tags.join(', ');
       _hasChanges = false;
     });
@@ -115,7 +115,7 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage>
     try {
       final updatedNote = _currentNote!.copyWith(
         title: _titleController.text.trim(),
-        bodyMd: _bodyController.text,
+        body: _bodyController.text,
         tags: _tagsController.text
             .split(',')
             .map((tag) => tag.trim())

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/note.dart';
@@ -31,9 +32,28 @@ class PlainTextNoteState {
 
 class PlainTextEditorNotifier extends AsyncNotifier<PlainTextNoteState> {
   Timer? _autoSaveTimer;
+  bool _hasBeenInitialized = false;
   
   @override
   Future<PlainTextNoteState> build() async {
+    if (kDebugMode) print('DEBUG: PlainTextEditorNotifier.build() called - hasBeenInitialized: $_hasBeenInitialized');
+    // Don't create default state if we've already been initialized
+    if (_hasBeenInitialized) {
+      if (kDebugMode) print('DEBUG: Already initialized, returning current state');
+      return state.value ?? PlainTextNoteState(
+        note: Note(
+          title: '',
+          body: '',
+          tags: [],
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+        isDirty: false,
+        isNew: true,
+      );
+    }
+    
+    if (kDebugMode) print('DEBUG: Creating initial empty state');
     return PlainTextNoteState(
       note: Note(
         title: '',
@@ -48,7 +68,10 @@ class PlainTextEditorNotifier extends AsyncNotifier<PlainTextNoteState> {
   }
 
   Future<void> initializeWithNote(Note? existingNote) async {
+    if (kDebugMode) print('DEBUG: initializeWithNote called with existingNote: $existingNote');
+    _hasBeenInitialized = true;
     if (existingNote != null) {
+      if (kDebugMode) print('DEBUG: Setting state with existing note');
       state = AsyncValue.data(PlainTextNoteState(
         note: existingNote,
         isDirty: false,
@@ -112,7 +135,7 @@ class PlainTextEditorNotifier extends AsyncNotifier<PlainTextNoteState> {
   }
 
   Future<void> _performAutoSave() async {
-    await state.whenData((currentState) async {
+    state.whenData((currentState) async {
       if (currentState.isDirty && !currentState.isNew) {
         await _saveNote(currentState);
       }
@@ -120,7 +143,7 @@ class PlainTextEditorNotifier extends AsyncNotifier<PlainTextNoteState> {
   }
 
   Future<void> saveNote() async {
-    await state.whenData((currentState) async {
+    state.whenData((currentState) async {
       await _saveNote(currentState);
     });
   }
@@ -154,10 +177,8 @@ class PlainTextEditorNotifier extends AsyncNotifier<PlainTextNoteState> {
     }
   }
 
-  @override
-  void dispose() {
+  void cleanup() {
     _autoSaveTimer?.cancel();
-    super.dispose();
   }
 }
 
@@ -198,15 +219,25 @@ class _PlainTextEditorPageState extends ConsumerState<PlainTextEditorPage> {
   }
 
   Future<void> _initializeNote() async {
+    if (kDebugMode) print('DEBUG: _initializeNote called');
     Note? noteToLoad;
+    
+    if (kDebugMode) print('DEBUG: widget.initialNote: ${widget.initialNote}');
+    if (kDebugMode) print('DEBUG: widget.noteId: ${widget.noteId}');
     
     if (widget.initialNote != null) {
       noteToLoad = widget.initialNote;
+      if (kDebugMode) print('DEBUG: Using widget.initialNote');
     } else if (widget.noteId != null) {
+      if (kDebugMode) print('DEBUG: Loading note by ID: ${widget.noteId}');
       final repository = ref.read(notesRepositoryProvider.notifier);
       noteToLoad = await repository.getNoteById(widget.noteId!);
+      if (kDebugMode) print('DEBUG: Loaded note: $noteToLoad');
+    } else {
+      if (kDebugMode) print('DEBUG: No note to load - creating new note');
     }
     
+    if (kDebugMode) print('DEBUG: About to call initializeWithNote with: $noteToLoad');
     await ref.read(_editorProvider.notifier).initializeWithNote(noteToLoad);
   }
 
@@ -253,14 +284,22 @@ class _PlainTextEditorPageState extends ConsumerState<PlainTextEditorPage> {
     final palette = ref.watch(currentPaletteProvider);
     final editorState = ref.watch(_editorProvider);
     
-    return WillPopScope(
-      onWillPop: _onWillPop,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) {
+          final shouldPop = await _onWillPop();
+          if (shouldPop && context.mounted) {
+            Navigator.of(context).pop();
+          }
+        }
+      },
       child: Scaffold(
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () async {
-              if (await _onWillPop()) {
+              if (await _onWillPop() && mounted) {
                 Navigator.of(context).pop();
               }
             },
@@ -299,8 +338,14 @@ class _PlainTextEditorPageState extends ConsumerState<PlainTextEditorPage> {
   }
 
   Widget _buildTitleWidget(PlainTextNoteState state, palette) {
-    if (_isEditingTitle) {
+    // Set the title controller text if it doesn't match the current state
+    if (_titleController.text != state.note.title) {
       _titleController.text = state.note.title;
+    }
+    
+    if (kDebugMode) print('DEBUG: _buildTitleWidget - controller.text: "${_titleController.text}", state.note.title: "${state.note.title}", isEditing: $_isEditingTitle');
+    
+    if (_isEditingTitle) {
       return TextField(
         controller: _titleController,
         autofocus: true,
@@ -322,7 +367,7 @@ class _PlainTextEditorPageState extends ConsumerState<PlainTextEditorPage> {
       return GestureDetector(
         onTap: () => setState(() => _isEditingTitle = true),
         child: Text(
-          state.note.title.isEmpty ? 'Untitled' : state.note.title,
+          _titleController.text.isEmpty ? 'Untitled' : _titleController.text,
           style: Theme.of(context).textTheme.titleLarge,
         ),
       );
@@ -335,6 +380,8 @@ class _PlainTextEditorPageState extends ConsumerState<PlainTextEditorPage> {
       _bodyController.text = state.note.body;
     }
     
+    if (kDebugMode) print('DEBUG: _buildEditor - controller.text: "${_bodyController.text}", state.note.body: "${state.note.body}"');
+    
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: TextField(
@@ -342,6 +389,7 @@ class _PlainTextEditorPageState extends ConsumerState<PlainTextEditorPage> {
         maxLines: null,
         expands: true,
         keyboardType: TextInputType.multiline,
+        textAlignVertical: TextAlignVertical.top,
         decoration: const InputDecoration(
           border: InputBorder.none,
           hintText: 'Start writing...',

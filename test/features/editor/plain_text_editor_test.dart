@@ -22,7 +22,7 @@ void main() {
       expect(find.byIcon(Icons.arrow_back), findsOneWidget);
       
       // Check that full-screen text field exists
-      expect(find.byType(TextField), findsAtLeastNWidget(1));
+      expect(find.byType(TextField), findsWidgets);
       
       // Check that title area exists (should be tappable)
       expect(find.text('Untitled'), findsOneWidget);
@@ -68,7 +68,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should now show a text field for editing title
-      expect(find.byType(TextField), findsAtLeastNWidget(1));
+      expect(find.byType(TextField), findsWidgets);
     });
 
     testWidgets('shows save button for new notes when dirty', (tester) async {

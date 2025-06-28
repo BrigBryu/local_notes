@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/theme_controller.dart';
-import 'features/editor/plain_text_editor_page.dart';
+import 'features/editor/plain_text_editor_screen.dart';
 import 'providers/notes_repository.dart';
 import 'settings/theme_gallery_page.dart';
 
@@ -86,12 +86,13 @@ class NotesHomePage extends ConsumerWidget {
         onPressed: () => _navigateToEditor(context),
         backgroundColor: palette.accent,
         foregroundColor: palette.onPrimary,
+        tooltip: 'Create new note',
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  Widget _buildEmptyState(palette) {
+  Widget _buildEmptyState(dynamic palette) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -123,7 +124,7 @@ class NotesHomePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildNotesList(List notes, palette) {
+  Widget _buildNotesList(List<dynamic> notes, dynamic palette) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: notes.length,
@@ -208,13 +209,12 @@ class NotesHomePage extends ConsumerWidget {
     }
   }
 
-  void _navigateToEditor(BuildContext context, {note}) {
+  void _navigateToEditor(BuildContext context, {dynamic note}) {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => PlainTextEditorPage(
-          noteId: note?.id,
-          initialNote: note,
+        builder: (context) => PlainTextEditorScreen(
+          noteId: note?.id ?? -1,
         ),
       ),
     );

@@ -76,7 +76,7 @@ class DatabaseProvider {
   
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      // Version 2: No schema changes needed, bodyMd field name stays the same in DB for compatibility
+      // Version 2: No schema changes needed, body field name stays the same in DB for compatibility
     }
   }
   

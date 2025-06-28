@@ -1,10 +1,7 @@
-import 'dart:io';
 import 'dart:math';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:path/path.dart' as path;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:local_notes/domain/note.dart';
-import 'package:local_notes/data/database_provider.dart';
 
 class TestDatabaseProvider {
   static Database? _testDatabase;

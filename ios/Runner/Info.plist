@@ -45,5 +45,10 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array>
+	</array>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This app does not track users.</string>
 </dict>
 </plist>

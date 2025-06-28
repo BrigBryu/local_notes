@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:local_notes/settings/theme_gallery_page.dart';
-import 'package:local_notes/theme/theme_controller.dart';
 import 'package:local_notes/theme/theme_registry.dart';
 
 void main() {
@@ -26,7 +25,7 @@ void main() {
       expect(find.byType(GridView), findsOneWidget);
       
       // Check that theme cards are present
-      expect(find.byType(ThemeCard), findsAtLeastNWidget(1));
+      expect(find.byType(ThemeCard), findsWidgets);
     });
 
     testWidgets('displays all themes from registry', (tester) async {

@@ -72,7 +72,7 @@ void main() {
       final testNote = Note(
         id: 1,
         title: 'Sample Note',
-        bodyMd: '''# Hello World
+        body: '''# Hello World
 
 This is a **sample** note with *markdown* content.
 
@@ -128,7 +128,7 @@ void main() {
       final testNote = Note(
         id: 1,
         title: 'Sample Note',
-        bodyMd: '''# Hello World
+        body: '''# Hello World
 
 This is a **sample** note with *markdown* content.
 
@@ -184,7 +184,7 @@ void main() {
       final testNote = Note(
         id: 1,
         title: 'Mobile Test',
-        bodyMd: '# Mobile Layout\n\nTesting mobile editor layout with tabs.',
+        body: '# Mobile Layout\n\nTesting mobile editor layout with tabs.',
         tags: ['mobile'],
         createdAt: DateTime(2024, 1, 1),
         updatedAt: DateTime(2024, 1, 2),
