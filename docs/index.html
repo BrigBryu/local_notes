@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Notes - Free Offline Android Notes App</title>
+    <meta name="description" content="Local Notes is a free, offline text editor for Android. No cloud, no accounts, no ads. Just notes stored locally on your device.">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #e8e8e8;
+            background-color: #1a1a1a;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        header {
+            background-color: #2d2d2d;
+            padding: 1rem 0;
+            border-bottom: 2px solid #4a4a4a;
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .app-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #ffffff;
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 3rem 0;
+            background: linear-gradient(135deg, #2d2d2d 0%, #1a1a1a 100%);
+        }
+
+        .feature-banner {
+            max-width: 100%;
+            height: auto;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            margin-bottom: 2rem;
+        }
+
+        .tagline {
+            font-size: 1.5rem;
+            color: #b8b8b8;
+            margin-bottom: 2rem;
+            font-weight: 300;
+        }
+
+        .section {
+            padding: 4rem 0;
+            border-bottom: 1px solid #333;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            color: #ffffff;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .feature-item {
+            background-color: #2d2d2d;
+            padding: 2rem;
+            border-radius: 12px;
+            border: 1px solid #4a4a4a;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .feature-item:hover {
+            transform: translateY(-4px);
+            border-color: #6a6a6a;
+        }
+
+        .feature-item h3 {
+            color: #ffffff;
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-icon {
+            font-size: 1.5rem;
+        }
+
+        .screenshots-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .screenshot {
+            background-color: #2d2d2d;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid #4a4a4a;
+            transition: transform 0.2s ease;
+        }
+
+        .screenshot:hover {
+            transform: scale(1.02);
+        }
+
+        .screenshot img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .screenshot-caption {
+            padding: 1rem;
+            color: #b8b8b8;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .get-access {
+            background-color: #2d2d2d;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            border: 2px solid #4a4a4a;
+        }
+
+        .get-access h3 {
+            color: #ffffff;
+            font-size: 1.8rem;
+            margin-bottom: 1rem;
+        }
+
+        .get-access p {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            color: #d0d0d0;
+        }
+
+        .email-info {
+            background-color: #1a1a1a;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #5a9fd4;
+            margin-top: 1rem;
+        }
+
+        .email-info strong {
+            color: #5a9fd4;
+            font-family: 'Courier New', monospace;
+        }
+
+        footer {
+            background-color: #2d2d2d;
+            padding: 2rem 0;
+            text-align: center;
+            border-top: 1px solid #4a4a4a;
+        }
+
+        footer p {
+            color: #888;
+            margin-bottom: 0.5rem;
+        }
+
+        footer a {
+            color: #5a9fd4;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            h1 {
+                font-size: 1.5rem;
+            }
+
+            h2 {
+                font-size: 2rem;
+            }
+
+            .tagline {
+                font-size: 1.2rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .screenshots-gallery {
+                grid-template-columns: 1fr;
+            }
+
+            .get-access {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <img src="graphics/local_notes_icon copy.png" alt="Local Notes Icon" class="app-icon">
+                <h1>Local Notes</h1>
+            </div>
+        </div>
+    </header>
+
+    <section class="hero">
+        <div class="container">
+            <img src="graphics/local_notes_feature_graphic copy.png" alt="Local Notes Feature Banner" class="feature-banner">
+            <p class="tagline">Free, offline text editor. No cloud. Just notes.</p>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <h2>Features</h2>
+            <div class="features-grid">
+                <div class="feature-item">
+                    <h3><span class="feature-icon">💾</span>Local SQLite Storage</h3>
+                    <p>Save notes locally in SQLite database. Your data stays on your device, completely private and secure.</p>
+                </div>
+                <div class="feature-item">
+                    <h3><span class="feature-icon">📁</span>Export & Import</h3>
+                    <p>Export individual notes as .txt files or export multiple notes as a .zip archive. Import them back anytime.</p>
+                </div>
+                <div class="feature-item">
+                    <h3><span class="feature-icon">🔒</span>No Cloud Required</h3>
+                    <p>No account, ads, analytics, or internet access required. Works completely offline for maximum privacy.</p>
+                </div>
+                <div class="feature-item">
+                    <h3><span class="feature-icon">🎨</span>12+ Vim-Style Themes</h3>
+                    <p>Choose from beautiful themes based on popular Vim color schemes like Gruvbox, Dracula, Solarized, and more.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <h2>Screenshots</h2>
+            <div class="screenshots-gallery">
+                <div class="screenshot">
+                    <img src="graphics/Screenshot_1751127525 copy.png" alt="Local Notes Home Screen">
+                    <div class="screenshot-caption">Home screen with your notes</div>
+                </div>
+                <div class="screenshot">
+                    <img src="graphics/Screenshot_1751127602 copy.png" alt="Grocery List in Dark Theme">
+                    <div class="screenshot-caption">Grocery list in dark theme</div>
+                </div>
+                <div class="screenshot">
+                    <img src="graphics/Screenshot_1751127622 copy.png" alt="Vim-Style Color Themes">
+                    <div class="screenshot-caption">Vim-style color themes</div>
+                </div>
+                <div class="screenshot">
+                    <img src="graphics/Screenshot_1751127542 copy.png" alt="Settings Screen">
+                    <div class="screenshot-caption">Settings and export options</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section">
+        <div class="container">
+            <div class="get-access">
+                <h3>Get Early Access</h3>
+                <p>Local Notes is currently in closed testing. Want early access?</p>
+                <div class="email-info">
+                    <p>Email <strong>bridgerbotpcc@gmail.com</strong> with the subject <strong>'Local Notes Tester'</strong> to be added to the next wave.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Local Notes. All rights reserved.</p>
+            <p><a href="https://github.com/BrigBryu/local_notes" target="_blank">View on GitHub</a></p>
+        </div>
+    </div>
+</body>
+</html>
