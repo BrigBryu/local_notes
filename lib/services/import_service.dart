@@ -4,6 +4,7 @@ import 'dart:isolate';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
+import 'package:archive/archive.dart';
 import '../providers/notes_repository.dart';
 
 final importServiceProvider = Provider<ImportService>((ref) {
@@ -15,49 +16,68 @@ class ImportService {
 
   ImportService(this.notesRepository);
 
-  Future<bool> importFile(File file) async {
+  Future<int> importFile(File file) async {
     try {
       if (kDebugMode) {
         print('Importing file: ${file.path}');
       }
       
       // Run heavy I/O operations in isolate
-      final result = await Isolate.run(() => _processFileInIsolate(file));
+      final results = await Isolate.run(() => _processFileInIsolate(file));
       
-      if (result != null) {
-        // Add the note to the repository
-        await notesRepository.createNote(
-          title: result['title'] as String,
-          body: result['body'] as String,
-          tags: (result['tags'] as List<dynamic>).cast<String>(),
-        );
-        return true;
+      if (results != null && results.isNotEmpty) {
+        // Add notes to the repository
+        int importedCount = 0;
+        for (final result in results) {
+          try {
+            await notesRepository.createNote(
+              title: result['title'] as String,
+              body: result['body'] as String,
+              tags: (result['tags'] as List<dynamic>).cast<String>(),
+            );
+            importedCount++;
+          } catch (e) {
+            if (kDebugMode) {
+              print('Failed to import note: ${result['title']}, error: $e');
+            }
+          }
+        }
+        return importedCount;
       }
       
-      return false;
+      return 0;
     } catch (e) {
       if (kDebugMode) {
         print('Import error: $e');
       }
-      return false;
+      return 0;
     }
   }
 
-  static Map<String, dynamic>? _processFileInIsolate(File file) {
+  static List<Map<String, dynamic>>? _processFileInIsolate(File file) {
     try {
       final extension = path.extension(file.path).toLowerCase();
-      final content = file.readAsStringSync();
       
       switch (extension) {
+        case '.zip':
+          return _processZipFile(file);
         case '.txt':
-          return _processTextFile(file, content);
+          final content = file.readAsStringSync();
+          final result = _processTextFile(file, content);
+          return result != null ? [result] : null;
         case '.md':
-          return _processMarkdownFile(file, content);
+          final content = file.readAsStringSync();
+          final result = _processMarkdownFile(file, content);
+          return result != null ? [result] : null;
         case '.json':
-          return _processJsonFile(content);
+          final content = file.readAsStringSync();
+          final result = _processJsonFile(content);
+          return result != null ? [result] : null;
         default:
           // Try to read as text for unknown file types
-          return _processTextFile(file, content);
+          final content = file.readAsStringSync();
+          final result = _processTextFile(file, content);
+          return result != null ? [result] : null;
       }
     } catch (e) {
       return null;
@@ -153,6 +173,106 @@ class ImportService {
         'body': content,
         'tags': <String>[],
       };
+    }
+  }
+
+  static List<Map<String, dynamic>>? _processZipFile(File file) {
+    try {
+      final bytes = file.readAsBytesSync();
+      final archive = ZipDecoder().decodeBytes(bytes);
+      final notes = <Map<String, dynamic>>[];
+      
+      for (final file in archive) {
+        if (file.isFile && file.name.endsWith('.txt')) {
+          // Skip the summary file
+          if (file.name.contains('_export_summary.txt')) {
+            continue;
+          }
+          
+          final content = utf8.decode(file.content as List<int>);
+          final note = _parseExportedNoteContent(file.name, content);
+          if (note != null) {
+            notes.add(note);
+          }
+        }
+      }
+      
+      return notes.isNotEmpty ? notes : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  static Map<String, dynamic>? _parseExportedNoteContent(String fileName, String content) {
+    try {
+      final lines = content.split('\n');
+      String title = '';
+      String body = '';
+      List<String> tags = [];
+      
+      bool inBody = false;
+      bool inMetadata = false;
+      
+      for (int i = 0; i < lines.length; i++) {
+        final line = lines[i];
+        
+        if (i == 0 && !line.startsWith('=') && !line.startsWith('-')) {
+          // First line is likely the title
+          title = line.trim();
+          continue;
+        }
+        
+        if (line.startsWith('=') || line.startsWith('-')) {
+          // Skip separator lines
+          continue;
+        }
+        
+        if (line.trim() == '---') {
+          // Start of metadata section
+          inMetadata = true;
+          inBody = false;
+          continue;
+        }
+        
+        if (inMetadata) {
+          if (line.startsWith('Tags: ')) {
+            final tagStr = line.substring(6).trim();
+            if (tagStr.isNotEmpty) {
+              tags = tagStr.split(', ').map((tag) => tag.trim()).toList();
+            }
+          }
+          continue;
+        }
+        
+        if (line.startsWith('Tags: ')) {
+          final tagStr = line.substring(6).trim();
+          if (tagStr.isNotEmpty) {
+            tags = tagStr.split(', ').map((tag) => tag.trim()).toList();
+          }
+          continue;
+        }
+        
+        // Everything else is body content
+        if (!inMetadata && line.trim().isNotEmpty) {
+          if (body.isNotEmpty) {
+            body += '\n';
+          }
+          body += line;
+        }
+      }
+      
+      // If no title was found, use filename
+      if (title.isEmpty) {
+        title = path.basenameWithoutExtension(fileName);
+      }
+      
+      return {
+        'title': title,
+        'body': body.trim(),
+        'tags': tags,
+      };
+    } catch (e) {
+      return null;
     }
   }
 }

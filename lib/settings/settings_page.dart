@@ -106,12 +106,14 @@ class SettingsPage extends ConsumerWidget {
       if (result == null) return;
       
       final importService = ref.read(importServiceProvider);
-      int importedCount = 0;
+      int totalNotesImported = 0;
+      int filesProcessed = 0;
       
       for (final file in result.files) {
         if (file.path != null) {
-          final success = await importService.importFile(File(file.path!));
-          if (success) importedCount++;
+          final notesImported = await importService.importFile(File(file.path!));
+          totalNotesImported += notesImported;
+          if (notesImported > 0) filesProcessed++;
         }
       }
       
@@ -119,10 +121,14 @@ class SettingsPage extends ConsumerWidget {
       ref.invalidate(notesRepositoryProvider);
       
       if (context.mounted) {
+        final message = totalNotesImported > 0
+            ? 'Imported $totalNotesImported notes from $filesProcessed of ${result.files.length} files'
+            : 'No notes could be imported from the selected files';
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Imported $importedCount of ${result.files.length} files'),
-            backgroundColor: Colors.green,
+            content: Text(message),
+            backgroundColor: totalNotesImported > 0 ? Colors.green : Colors.orange,
           ),
         );
       }
