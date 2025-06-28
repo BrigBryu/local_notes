@@ -61,7 +61,7 @@ class NotesHomePage extends ConsumerWidget {
       body: notesAsync.when(
         data: (notes) => notes.isEmpty
             ? _buildEmptyState(palette)
-            : _buildNotesList(notes, palette),
+            : _buildNotesList(notes, palette, ref),
         loading: () => Center(
           child: CircularProgressIndicator(color: palette.primary),
         ),
@@ -127,67 +127,87 @@ class NotesHomePage extends ConsumerWidget {
     );
   }
 
-  Widget _buildNotesList(List<dynamic> notes, dynamic palette) {
+  Widget _buildNotesList(List<dynamic> notes, dynamic palette, WidgetRef ref) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
       itemCount: notes.length,
       itemBuilder: (context, index) {
         final note = notes[index];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            title: Text(
-              note.title.isEmpty ? 'Untitled' : note.title,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: palette.onSurface,
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+        return Dismissible(
+          key: Key('note_${note.id}'),
+          direction: DismissDirection.startToEnd,
+          background: Container(
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.only(left: 20),
+            color: palette.error,
+            child: Icon(
+              Icons.delete,
+              color: palette.onError,
+              size: 24,
             ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (note.body.isNotEmpty) ...[
+          ),
+          confirmDismiss: (direction) async {
+            return await _showDeleteConfirmDialog(context, note, palette);
+          },
+          onDismissed: (direction) {
+            _deleteNote(context, ref, note, palette);
+          },
+          child: Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: ListTile(
+              title: Text(
+                note.title.isEmpty ? 'Untitled' : note.title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: palette.onSurface,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (note.body.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      note.body,
+                      style: TextStyle(color: palette.onBackground),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                  if (note.tags.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 4,
+                      children: note.tags.take(3).map((tag) => Chip(
+                        label: Text(
+                          tag,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: palette.onPrimary,
+                          ),
+                        ),
+                        backgroundColor: palette.primary,
+                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      )).toList(),
+                    ),
+                  ],
                   const SizedBox(height: 4),
                   Text(
-                    note.body,
-                    style: TextStyle(color: palette.onBackground),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
+                    'Updated ${_formatDate(note.updatedAt)}',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: palette.hint,
+                    ),
                   ),
                 ],
-                if (note.tags.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 4,
-                    children: note.tags.take(3).map((tag) => Chip(
-                      label: Text(
-                        tag,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: palette.onPrimary,
-                        ),
-                      ),
-                      backgroundColor: palette.primary,
-                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    )).toList(),
-                  ),
-                ],
-                const SizedBox(height: 4),
-                Text(
-                  'Updated ${_formatDate(note.updatedAt)}',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: palette.hint,
-                  ),
-                ),
-              ],
-            ),
-            onTap: () => _navigateToEditor(context, note: note),
-            trailing: Icon(
-              Icons.chevron_right,
-              color: palette.hint,
+              ),
+              onTap: () => _navigateToEditor(context, note: note),
+              trailing: Icon(
+                Icons.chevron_right,
+                color: palette.hint,
+              ),
             ),
           ),
         );
@@ -218,6 +238,67 @@ class NotesHomePage extends ConsumerWidget {
       MaterialPageRoute(
         builder: (context) => PlainTextEditorScreen(
           noteId: note?.id ?? -1,
+        ),
+      ),
+    );
+  }
+
+  Future<bool?> _showDeleteConfirmDialog(
+    BuildContext context, 
+    dynamic note, 
+    dynamic palette
+  ) async {
+    return showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text(
+            'Delete Note',
+            style: TextStyle(color: palette.onSurface),
+          ),
+          content: Text(
+            note.title.isEmpty 
+                ? 'Are you sure you want to delete this untitled note?'
+                : 'Are you sure you want to delete "${note.title}"?',
+            style: TextStyle(color: palette.onSurface),
+          ),
+          backgroundColor: palette.surface,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text('Cancel', style: TextStyle(color: palette.primary)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: palette.error,
+              ),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _deleteNote(BuildContext context, WidgetRef ref, dynamic note, dynamic palette) {
+    ref.read(notesRepositoryProvider.notifier).deleteNote(note.id);
+    
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          note.title.isEmpty 
+              ? 'Untitled note deleted'
+              : '"${note.title}" deleted',
+        ),
+        backgroundColor: palette.error,
+        action: SnackBarAction(
+          label: 'Undo',
+          textColor: palette.onError,
+          onPressed: () {
+            // Re-add the note (this would require some additional logic)
+            ref.read(notesRepositoryProvider.notifier).addNote(note);
+          },
         ),
       ),
     );
