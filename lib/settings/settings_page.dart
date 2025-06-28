@@ -61,7 +61,7 @@ class SettingsPage extends ConsumerWidget {
       height: 32,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: palette.outline, width: 1),
+        border: Border.all(color: palette.divider, width: 1),
       ),
       child: Row(
         children: [
