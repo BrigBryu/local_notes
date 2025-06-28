@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:file_picker/file_picker.dart';
 import 'dart:io';
@@ -99,8 +100,9 @@ class SettingsPage extends ConsumerWidget {
     try {
       final result = await FilePicker.platform.pickFiles(
         allowMultiple: true,
-        type: FileType.any,
-        dialogTitle: 'Select files to import',
+        type: FileType.custom,
+        allowedExtensions: ['zip', 'txt', 'md', 'json'],
+        dialogTitle: 'Select notes files to import',
       );
       
       if (result == null) return;
@@ -171,7 +173,6 @@ class SettingsPage extends ConsumerWidget {
       final exportedFile = await exportService.createZip(selectedNotes: selectedNotes);
       
       if (context.mounted) {
-        final friendlyPath = _getFriendlyPath(exportedFile.path);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
@@ -181,17 +182,17 @@ class SettingsPage extends ConsumerWidget {
                 Text('Exported ${selectedNotes.length} notes successfully!'),
                 const SizedBox(height: 4),
                 Text(
-                  'Location: $friendlyPath',
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w300),
+                  'Location: ${exportedFile.path}',
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w300),
                 ),
               ],
             ),
             backgroundColor: Colors.green,
-            duration: const Duration(seconds: 6),
+            duration: const Duration(seconds: 8),
             action: SnackBarAction(
-              label: 'VIEW',
+              label: 'COPY PATH',
               textColor: Colors.white,
-              onPressed: () => _showExportPathDialog(context, exportedFile.path, friendlyPath),
+              onPressed: () => _copyPathToClipboard(context, exportedFile.path),
             ),
           ),
         );
@@ -208,92 +209,15 @@ class SettingsPage extends ConsumerWidget {
     }
   }
 
-  String _getFriendlyPath(String fullPath) {
-    final fileName = fullPath.split('/').last;
-    
-    // Convert technical path to user-friendly description
-    if (fullPath.contains('/storage/emulated/0/Download') || fullPath.contains('/sdcard/Download')) {
-      return 'Downloads/LocalNotes/$fileName';
-    } else if (fullPath.contains('/storage/emulated/0/LocalNotes')) {
-      return 'LocalNotes/$fileName (in device storage)';
-    } else if (fullPath.contains('/Android/data/')) {
-      return 'App Files/LocalNotes/$fileName (restricted access)';
-    } else if (fullPath.contains('app_flutter')) {
-      return 'App Documents/$fileName (hidden)';
-    } else {
-      // Just show the filename if path structure is unknown
-      return fileName;
-    }
-  }
-
-  void _showExportPathDialog(BuildContext context, String fullPath, String friendlyPath) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Export Location'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Your notes have been exported to:'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey[300]!),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Friendly Path:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[700],
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    friendlyPath,
-                    style: const TextStyle(fontFamily: 'monospace'),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Full Path:',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.grey[700],
-                      fontSize: 12,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    fullPath,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 12),
-            const Text(
-              'You can find this file using your device\'s file manager app.',
-              style: TextStyle(fontSize: 14, color: Colors.grey),
-            ),
-          ],
+  Future<void> _copyPathToClipboard(BuildContext context, String path) async {
+    await Clipboard.setData(ClipboardData(text: path));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Path copied to clipboard'),
+          duration: Duration(seconds: 2),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
-    );
+      );
+    }
   }
 }

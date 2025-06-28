@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <!-- Center the document icon properly -->
+  <group android:scaleX="1.2"
+         android:scaleY="1.2"
+         android:pivotX="54"
+         android:pivotY="54">
+    <group android:translateX="25"
+           android:translateY="20">
+      <!-- White document page with rounded corners -->
+      <path
+          android:fillColor="#F8F8F8"
+          android:pathData="M10,8 L42,8 L50,16 L50,64 C50,66 48,68 46,68 L10,68 C8,68 6,66 6,64 L6,12 C6,10 8,8 10,8 Z"/>
+      
+      <!-- Orange corner fold -->
+      <path
+          android:fillColor="#FF6B35"
+          android:pathData="M42,8 L50,16 L42,16 Z"/>
+      
+      <!-- Gray text lines -->
+      <path
+          android:strokeColor="#9CA3AF"
+          android:strokeWidth="2"
+          android:strokeLineCap="round"
+          android:pathData="M14,25 L42,25"/>
+      <path
+          android:strokeColor="#9CA3AF"
+          android:strokeWidth="2"
+          android:strokeLineCap="round"
+          android:pathData="M14,33 L46,33"/>
+      <path
+          android:strokeColor="#9CA3AF"
+          android:strokeWidth="2"
+          android:strokeLineCap="round"
+          android:pathData="M14,41 L44,41"/>
+      <path
+          android:strokeColor="#9CA3AF"
+          android:strokeWidth="2"
+          android:strokeLineCap="round"
+          android:pathData="M14,49 L40,49"/>
+      <path
+          android:strokeColor="#9CA3AF"
+          android:strokeWidth="2"
+          android:strokeLineCap="round"
+          android:pathData="M14,57 L46,57"/>
+    </group>
+  </group>
+</vector>

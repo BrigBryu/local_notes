@@ -42,8 +42,10 @@ android {
 
     buildTypes {
         release {
-            // Use debug signing for now (replace with proper signing in production)
-            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }

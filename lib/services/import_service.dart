@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as path;
 import 'package:archive/archive.dart';
 import '../providers/notes_repository.dart';
+import '../domain/note.dart';
 
 final importServiceProvider = Provider<ImportService>((ref) {
   return ImportService(ref.read(notesRepositoryProvider.notifier));
@@ -26,15 +27,27 @@ class ImportService {
       final results = await Isolate.run(() => _processFileInIsolate(file));
       
       if (results != null && results.isNotEmpty) {
+        // Get existing notes to check for title conflicts
+        final existingNotes = await _getExistingNotes();
+        final existingTitles = existingNotes.map((note) => note.title.toLowerCase()).toSet();
+        
         // Add notes to the repository
         int importedCount = 0;
         for (final result in results) {
           try {
-            await notesRepository.createNote(
-              title: result['title'] as String,
+            final originalTitle = result['title'] as String;
+            final uniqueTitle = _getUniqueTitle(originalTitle, existingTitles);
+            
+            // Add the new title to the set to avoid conflicts with subsequent imports
+            existingTitles.add(uniqueTitle.toLowerCase());
+            
+            await notesRepository.addNote(Note(
+              title: uniqueTitle,
               body: result['body'] as String,
               tags: (result['tags'] as List<dynamic>).cast<String>(),
-            );
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+            ));
             importedCount++;
           } catch (e) {
             if (kDebugMode) {
@@ -274,5 +287,43 @@ class ImportService {
     } catch (e) {
       return null;
     }
+  }
+
+  Future<List<Note>> _getExistingNotes() async {
+    try {
+      // Get all existing notes from the repository
+      final notesAsync = notesRepository.state;
+      if (notesAsync.hasValue) {
+        return notesAsync.value ?? [];
+      }
+      return [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  String _getUniqueTitle(String originalTitle, Set<String> existingTitles) {
+    if (!existingTitles.contains(originalTitle.toLowerCase())) {
+      return originalTitle;
+    }
+
+    // Find a unique title by adding numbers
+    int counter = 1;
+    String baseTitle = originalTitle;
+    
+    // If the title already ends with a number in parentheses, extract the base
+    final match = RegExp(r'^(.+?)\s*\((\d+)\)$').firstMatch(originalTitle);
+    if (match != null) {
+      baseTitle = match.group(1)!.trim();
+      counter = int.parse(match.group(2)!) + 1;
+    }
+
+    String candidateTitle;
+    do {
+      candidateTitle = '$baseTitle ($counter)';
+      counter++;
+    } while (existingTitles.contains(candidateTitle.toLowerCase()));
+
+    return candidateTitle;
   }
 }

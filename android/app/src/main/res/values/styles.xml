@@ -15,4 +15,7 @@
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
+    
+    <!-- App icon background color - darker to avoid blue ring -->
+    <color name="ic_launcher_background">#3A3A3A</color>
 </resources>
