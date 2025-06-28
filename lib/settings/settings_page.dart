@@ -203,19 +203,20 @@ class SettingsPage extends ConsumerWidget {
   }
 
   String _getFriendlyPath(String fullPath) {
+    final fileName = fullPath.split('/').last;
+    
     // Convert technical path to user-friendly description
-    if (fullPath.contains('/storage/emulated/0/Download')) {
-      final fileName = fullPath.split('/').last;
+    if (fullPath.contains('/storage/emulated/0/Download') || fullPath.contains('/sdcard/Download')) {
       return 'Downloads/LocalNotes/$fileName';
+    } else if (fullPath.contains('/storage/emulated/0/LocalNotes')) {
+      return 'LocalNotes/$fileName (in device storage)';
     } else if (fullPath.contains('/Android/data/')) {
-      final fileName = fullPath.split('/').last;
-      return 'App Files/LocalNotes/$fileName';
+      return 'App Files/LocalNotes/$fileName (restricted access)';
     } else if (fullPath.contains('app_flutter')) {
-      final fileName = fullPath.split('/').last;
-      return 'App Documents/$fileName';
+      return 'App Documents/$fileName (hidden)';
     } else {
       // Just show the filename if path structure is unknown
-      return fullPath.split('/').last;
+      return fileName;
     }
   }
 

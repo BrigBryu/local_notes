@@ -160,25 +160,15 @@ class ExportService {
   }
 
   static Future<Directory> _getExportDirectory() async {
-    // Try to get Downloads directory on Android, fallback to Documents
+    // Always prioritize Downloads directory for Android
     if (Platform.isAndroid) {
       try {
-        // Try external storage first (accessible via file manager)
-        final externalDir = await getExternalStorageDirectory();
-        if (externalDir != null) {
-          // Create LocalNotes folder in Android/data/[package]/files/
-          return Directory(path.join(externalDir.path, 'LocalNotes'));
-        }
-      } catch (e) {
-        if (kDebugMode) {
-          print('External storage not available: $e');
-        }
-      }
-      
-      try {
-        // Try Downloads directory (most accessible)
+        // First try the standard Downloads directory
         final downloadsDir = Directory('/storage/emulated/0/Download/LocalNotes');
-        if (await downloadsDir.exists() || await _canCreateDirectory(downloadsDir)) {
+        if (await _canCreateDirectory(downloadsDir)) {
+          if (kDebugMode) {
+            print('Using Downloads directory: ${downloadsDir.path}');
+          }
           return downloadsDir;
         }
       } catch (e) {
@@ -186,9 +176,42 @@ class ExportService {
           print('Downloads directory not accessible: $e');
         }
       }
+
+      try {
+        // Try alternative Downloads path
+        final altDownloadsDir = Directory('/sdcard/Download/LocalNotes');
+        if (await _canCreateDirectory(altDownloadsDir)) {
+          if (kDebugMode) {
+            print('Using alternative Downloads directory: ${altDownloadsDir.path}');
+          }
+          return altDownloadsDir;
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Alternative Downloads directory not accessible: $e');
+        }
+      }
+
+      try {
+        // Last resort: try external storage public directory
+        final publicDir = Directory('/storage/emulated/0/LocalNotes');
+        if (await _canCreateDirectory(publicDir)) {
+          if (kDebugMode) {
+            print('Using public storage directory: ${publicDir.path}');
+          }
+          return publicDir;
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Public storage not accessible: $e');
+        }
+      }
     }
     
-    // Fallback to app documents directory
+    // Fallback to app documents directory (least preferred)
+    if (kDebugMode) {
+      print('Falling back to app documents directory');
+    }
     final documentsDir = await getApplicationDocumentsDirectory();
     return Directory(path.join(documentsDir.path, 'exports'));
   }
