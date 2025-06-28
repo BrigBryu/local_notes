@@ -12,12 +12,6 @@
             box-sizing: border-box;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            color: #e8e8e8;
-            background-color: #1a1a1a;
-        }
 
         .container {
             max-width: 1200px;
@@ -29,12 +23,48 @@
             background-color: #2d2d2d;
             padding: 1rem 0;
             border-bottom: 2px solid #4a4a4a;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
         }
 
         .header-content {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             gap: 15px;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .become-tester-btn {
+            background-color: #5a9fd4;
+            color: #ffffff;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            text-decoration: none;
+            transition: background-color 0.2s ease;
+            cursor: pointer;
+        }
+
+        .become-tester-btn:hover {
+            background-color: #4a8bc2;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: #e8e8e8;
+            background-color: #1a1a1a;
+            padding-top: 80px;
         }
 
         .app-icon {
@@ -157,6 +187,7 @@
             padding: 3rem;
             text-align: center;
             border: 2px solid #4a4a4a;
+            scroll-margin-top: 100px;
         }
 
         .get-access h3 {
@@ -209,6 +240,16 @@
             .header-content {
                 flex-direction: column;
                 text-align: center;
+                gap: 10px;
+            }
+
+            .header-left {
+                justify-content: center;
+            }
+
+            .become-tester-btn {
+                padding: 0.5rem 1rem;
+                font-size: 0.9rem;
             }
 
             h1 {
@@ -241,8 +282,11 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <img src="graphics/local_notes_icon copy.png" alt="Local Notes Icon" class="app-icon">
-                <h1>Local Notes</h1>
+                <div class="header-left">
+                    <img src="graphics/local_notes_icon copy.png" alt="Local Notes Icon" class="app-icon">
+                    <h1>Local Notes</h1>
+                </div>
+                <a href="#get-access" class="become-tester-btn">Become a Tester</a>
             </div>
         </div>
     </header>
@@ -254,7 +298,7 @@
         </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="get-access">
         <div class="container">
             <div class="get-access">
                 <h3>Get Early Access</h3>
