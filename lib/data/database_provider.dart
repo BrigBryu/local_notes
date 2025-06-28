@@ -12,6 +12,7 @@ class DatabaseProvider {
   static const String tableFts = 'notes_fts';
   
   static Database? _database;
+  static bool _hasFts5Support = false;
   
   DatabaseProvider._();
   static final DatabaseProvider instance = DatabaseProvider._();
@@ -45,33 +46,43 @@ class DatabaseProvider {
       )
     ''');
     
-    await db.execute('''
-      CREATE VIRTUAL TABLE $tableFts USING fts5(
-        title, 
-        body_md, 
-        content='$tableNotes', 
-        content_rowid='id'
-      )
-    ''');
+    // Try to create FTS5 table, fall back gracefully if not supported
+    try {
+      await db.execute('''
+        CREATE VIRTUAL TABLE $tableFts USING fts5(
+          title, 
+          body_md, 
+          content='$tableNotes', 
+          content_rowid='id'
+        )
+      ''');
+      _hasFts5Support = true;
+    } catch (e) {
+      print('FTS5 not available, falling back to basic search: $e');
+      _hasFts5Support = false;
+    }
     
-    await db.execute('''
-      CREATE TRIGGER ${tableNotes}_ai AFTER INSERT ON $tableNotes BEGIN
-        INSERT INTO $tableFts(rowid, title, body_md) VALUES (new.id, new.title, new.body_md);
-      END
-    ''');
-    
-    await db.execute('''
-      CREATE TRIGGER ${tableNotes}_ad AFTER DELETE ON $tableNotes BEGIN
-        INSERT INTO $tableFts($tableFts, rowid, title, body_md) VALUES('delete', old.id, old.title, old.body_md);
-      END
-    ''');
-    
-    await db.execute('''
-      CREATE TRIGGER ${tableNotes}_au AFTER UPDATE ON $tableNotes BEGIN
-        INSERT INTO $tableFts($tableFts, rowid, title, body_md) VALUES('delete', old.id, old.title, old.body_md);
-        INSERT INTO $tableFts(rowid, title, body_md) VALUES (new.id, new.title, new.body_md);
-      END
-    ''');
+    // Only create FTS triggers if FTS5 is supported
+    if (_hasFts5Support) {
+      await db.execute('''
+        CREATE TRIGGER ${tableNotes}_ai AFTER INSERT ON $tableNotes BEGIN
+          INSERT INTO $tableFts(rowid, title, body_md) VALUES (new.id, new.title, new.body_md);
+        END
+      ''');
+      
+      await db.execute('''
+        CREATE TRIGGER ${tableNotes}_ad AFTER DELETE ON $tableNotes BEGIN
+          INSERT INTO $tableFts($tableFts, rowid, title, body_md) VALUES('delete', old.id, old.title, old.body_md);
+        END
+      ''');
+      
+      await db.execute('''
+        CREATE TRIGGER ${tableNotes}_au AFTER UPDATE ON $tableNotes BEGIN
+          INSERT INTO $tableFts($tableFts, rowid, title, body_md) VALUES('delete', old.id, old.title, old.body_md);
+          INSERT INTO $tableFts(rowid, title, body_md) VALUES (new.id, new.title, new.body_md);
+        END
+      ''');
+    }
   }
   
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -134,12 +145,25 @@ class DatabaseProvider {
     }
     
     final db = await database;
-    final List<Map<String, dynamic>> maps = await db.rawQuery('''
-      SELECT n.* FROM $tableNotes n
-      INNER JOIN $tableFts fts ON n.id = fts.rowid
-      WHERE $tableFts MATCH ?
-      ORDER BY rank
-    ''', [keyword]);
+    List<Map<String, dynamic>> maps;
+    
+    if (_hasFts5Support) {
+      // Use FTS5 for fast full-text search
+      maps = await db.rawQuery('''
+        SELECT n.* FROM $tableNotes n
+        INNER JOIN $tableFts fts ON n.id = fts.rowid
+        WHERE $tableFts MATCH ?
+        ORDER BY rank
+      ''', [keyword]);
+    } else {
+      // Fallback to basic LIKE search when FTS5 is not available
+      final searchTerm = '%${keyword.toLowerCase()}%';
+      maps = await db.rawQuery('''
+        SELECT * FROM $tableNotes
+        WHERE LOWER(title) LIKE ? OR LOWER(body_md) LIKE ?
+        ORDER BY updated_at DESC
+      ''', [searchTerm, searchTerm]);
+    }
     
     return List.generate(maps.length, (i) => Note.fromMap(maps[i]));
   }
