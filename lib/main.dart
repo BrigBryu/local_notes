@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/theme_controller.dart';
 import 'features/editor/plain_text_editor_screen.dart';
 import 'providers/notes_repository.dart';
-import 'settings/theme_gallery_page.dart';
+import 'settings/settings_page.dart';
 
 void main() {
   runApp(const ProviderScope(child: LocalNotesApp()));
@@ -49,9 +49,12 @@ class NotesHomePage extends ConsumerWidget {
         title: const Text('Local Notes'),
         actions: [
           IconButton(
-            icon: Icon(Icons.palette, color: palette.accent),
-            onPressed: () => _navigateToThemeGallery(context),
-            tooltip: 'Themes',
+            icon: Icon(Icons.settings, color: palette.onSurface),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SettingsPage()),
+            ),
+            tooltip: 'Settings',
           ),
         ],
       ),
@@ -220,12 +223,4 @@ class NotesHomePage extends ConsumerWidget {
     );
   }
 
-  void _navigateToThemeGallery(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => const ThemeGalleryPage(),
-      ),
-    );
-  }
 }

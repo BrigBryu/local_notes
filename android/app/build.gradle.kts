@@ -28,9 +28,21 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreFile = file("../key/local_notes.jks")
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEY_PWD") ?: "android"
+                keyAlias = "local_notes"
+                keyPassword = System.getenv("ALIAS_PWD") ?: "android"
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // Using debug keys for development builds
+            // Use debug signing for now (replace with proper signing in production)
             signingConfig = signingConfigs.getByName("debug")
         }
     }
