@@ -165,10 +165,28 @@ class SettingsPage extends ConsumerWidget {
       final exportedFile = await exportService.createZip(selectedNotes: selectedNotes);
       
       if (context.mounted) {
+        final friendlyPath = _getFriendlyPath(exportedFile.path);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Exported ${selectedNotes.length} notes to ${exportedFile.path}'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Exported ${selectedNotes.length} notes successfully!'),
+                const SizedBox(height: 4),
+                Text(
+                  'Location: $friendlyPath',
+                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w300),
+                ),
+              ],
+            ),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 6),
+            action: SnackBarAction(
+              label: 'VIEW',
+              textColor: Colors.white,
+              onPressed: () => _showExportPathDialog(context, exportedFile.path, friendlyPath),
+            ),
           ),
         );
       }
@@ -182,5 +200,93 @@ class SettingsPage extends ConsumerWidget {
         );
       }
     }
+  }
+
+  String _getFriendlyPath(String fullPath) {
+    // Convert technical path to user-friendly description
+    if (fullPath.contains('/storage/emulated/0/Download')) {
+      final fileName = fullPath.split('/').last;
+      return 'Downloads/LocalNotes/$fileName';
+    } else if (fullPath.contains('/Android/data/')) {
+      final fileName = fullPath.split('/').last;
+      return 'App Files/LocalNotes/$fileName';
+    } else if (fullPath.contains('app_flutter')) {
+      final fileName = fullPath.split('/').last;
+      return 'App Documents/$fileName';
+    } else {
+      // Just show the filename if path structure is unknown
+      return fullPath.split('/').last;
+    }
+  }
+
+  void _showExportPathDialog(BuildContext context, String fullPath, String friendlyPath) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Export Location'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Your notes have been exported to:'),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[100],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey[300]!),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Friendly Path:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700],
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    friendlyPath,
+                    style: const TextStyle(fontFamily: 'monospace'),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Full Path:',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.grey[700],
+                      fontSize: 12,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    fullPath,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            const Text(
+              'You can find this file using your device\'s file manager app.',
+              style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 }
