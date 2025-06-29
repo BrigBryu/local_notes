@@ -102,13 +102,54 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage>
   void _onTextChanged() {
     setState(() => _hasChanges = true);
     
-    // Debounce auto-save
+    // More aggressive auto-save with shorter debounce
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
-      _saveNote();
+    _debounceTimer = Timer(const Duration(milliseconds: 150), () {
+      _autoSaveNote();
     });
   }
 
+  // Auto-save with gentle error handling
+  Future<void> _autoSaveNote() async {
+    if (!_hasChanges || _currentNote == null) return;
+
+    try {
+      final updatedNote = _currentNote!.copyWith(
+        title: _titleController.text.trim(),
+        body: _bodyController.text,
+        tags: _tagsController.text
+            .split(',')
+            .map((tag) => tag.trim())
+            .where((tag) => tag.isNotEmpty)
+            .toList(),
+        updatedAt: DateTime.now(),
+      );
+
+      final repository = ref.read(notesRepositoryProvider.notifier);
+      
+      bool success = false;
+      if (_currentNote!.id == null) {
+        // For new notes, use regular add (creates ID)
+        await repository.addNote(updatedNote);
+        success = true;
+      } else {
+        // For existing notes, use auto-save (gentler)
+        success = await repository.autoSaveNote(updatedNote);
+      }
+
+      if (success) {
+        setState(() {
+          _currentNote = updatedNote;
+          _hasChanges = false;
+        });
+      }
+    } catch (e) {
+      // Don't show error for auto-save failures - they're silent
+      print('Auto-save failed: $e');
+    }
+  }
+  
+  // Manual save with full error handling
   Future<void> _saveNote() async {
     if (!_hasChanges || _currentNote == null) return;
 
@@ -127,21 +168,34 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage>
       final repository = ref.read(notesRepositoryProvider.notifier);
       
       if (_currentNote!.id == null) {
-        // Create new note
         await repository.addNote(updatedNote);
       } else {
-        // Update existing note
-        await repository.updateNote(updatedNote);
+        await repository.forceSaveNote(updatedNote);
       }
 
       setState(() {
         _currentNote = updatedNote;
         _hasChanges = false;
       });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Note saved successfully'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error saving note: $e')),
+          SnackBar(
+            content: Text('Error saving note: $e'),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: _saveNote,
+            ),
+          ),
         );
       }
     }
@@ -166,6 +220,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage>
 
   @override
   void dispose() {
+    // Force save any remaining changes before disposal
+    if (_hasChanges && _currentNote != null) {
+      _saveNote();
+    }
+    
     _debounceTimer?.cancel();
     _titleController.dispose();
     _bodyController.dispose();
@@ -193,6 +252,11 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage>
               onPressed: _saveNote,
               tooltip: 'Save',
             ),
+          IconButton(
+            icon: const Icon(Icons.history),
+            onPressed: _showVersionHistory,
+            tooltip: 'Version History',
+          ),
           IconButton(
             icon: Icon(Icons.palette, color: palette.accent),
             onPressed: () => _showThemeSelector(context),
@@ -358,6 +422,85 @@ class _NoteEditorPageState extends ConsumerState<NoteEditorPage>
             ),
           ],
         ),
+      ),
+    );
+  }
+  
+  void _showVersionHistory() {
+    if (_currentNote?.id == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Save note first to view history')),
+      );
+      return;
+    }
+    
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Version History'),
+        content: FutureBuilder<Note?>(
+          future: ref.read(notesRepositoryProvider.notifier).getPreviousVersion(_currentNote!.id!),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const CircularProgressIndicator();
+            }
+            
+            if (snapshot.hasError) {
+              return Text('Error: ${snapshot.error}');
+            }
+            
+            final previousVersion = snapshot.data;
+            if (previousVersion == null) {
+              return const Text('No previous version available');
+            }
+            
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Previous version:', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                Text('Title: ${previousVersion.title}'),
+                const SizedBox(height: 4),
+                Text('Updated: ${previousVersion.updatedAt}'),
+                const SizedBox(height: 8),
+                Text('Content preview:', style: Theme.of(context).textTheme.titleSmall),
+                Container(
+                  height: 100,
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Text(previousVersion.body),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Close'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final repository = ref.read(notesRepositoryProvider.notifier);
+              final previousVersion = await repository.getPreviousVersion(_currentNote!.id!);
+              if (previousVersion != null) {
+                _setNoteData(previousVersion);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Restored previous version')),
+                );
+              }
+            },
+            child: const Text('Restore'),
+          ),
+        ],
       ),
     );
   }

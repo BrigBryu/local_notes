@@ -41,6 +41,8 @@ class PlainTextNoteState {
 
 class NoteEditorNotifier extends FamilyAsyncNotifier<PlainTextNoteState, int> {
   Timer? _autoSaveTimer;
+  Timer? _forceBackupTimer;
+  bool _hasUnsavedChanges = false;
   
   @override
   Future<PlainTextNoteState> build(int noteId) async {
@@ -116,8 +118,18 @@ class NoteEditorNotifier extends FamilyAsyncNotifier<PlainTextNoteState, int> {
 
   void _scheduleAutoSave() {
     _autoSaveTimer?.cancel();
+    _forceBackupTimer?.cancel();
+    
+    _hasUnsavedChanges = true;
+    
+    // Quick auto-save attempt
     _autoSaveTimer = Timer(const Duration(milliseconds: 300), () {
       _performAutoSave();
+    });
+    
+    // Force backup after 2 seconds if still dirty
+    _forceBackupTimer = Timer(const Duration(seconds: 2), () {
+      _performForceBackup();
     });
   }
 
@@ -127,7 +139,38 @@ class NoteEditorNotifier extends FamilyAsyncNotifier<PlainTextNoteState, int> {
       return;
     }
     
-    await save();
+    final repository = ref.read(notesRepositoryProvider.notifier);
+    final noteToSave = currentState.note.copyWith(
+      updatedAt: DateTime.now(),
+    );
+    
+    // Try gentle auto-save first
+    final success = await repository.autoSaveNote(noteToSave);
+    if (success) {
+      _hasUnsavedChanges = false;
+      _forceBackupTimer?.cancel();
+      
+      state = AsyncValue.data(currentState.copyWith(
+        note: noteToSave,
+        isDirty: false,
+      ));
+    }
+  }
+  
+  Future<void> _performForceBackup() async {
+    if (!_hasUnsavedChanges) return;
+    
+    final currentState = state.value;
+    if (currentState == null || currentState.isNew) {
+      return;
+    }
+    
+    try {
+      await save(); // Force save with full error handling
+    } catch (e) {
+      print('Force backup failed: $e');
+      // Even if force save fails, we still have version history
+    }
   }
 
   Future<void> save() async {
@@ -164,5 +207,35 @@ class NoteEditorNotifier extends FamilyAsyncNotifier<PlainTextNoteState, int> {
 
   void cleanup() {
     _autoSaveTimer?.cancel();
+    _forceBackupTimer?.cancel();
+    
+    // Force save any remaining changes before cleanup
+    if (_hasUnsavedChanges) {
+      _performForceBackup();
+    }
+  }
+  
+  // Manual save with enhanced recovery
+  Future<void> saveWithRecovery() async {
+    final currentState = state.value;
+    if (currentState == null) return;
+    
+    try {
+      await save();
+    } catch (error) {
+      // Try to recover previous version if save fails
+      if (!currentState.isNew && currentState.note.id != null) {
+        final repository = ref.read(notesRepositoryProvider.notifier);
+        final previousVersion = await repository.getPreviousVersion(currentState.note.id!);
+        
+        if (previousVersion != null) {
+          state = AsyncValue.data(currentState.copyWith(
+            note: previousVersion,
+            isDirty: false,
+          ));
+        }
+      }
+      rethrow;
+    }
   }
 }

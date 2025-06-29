@@ -6,12 +6,15 @@ import '../domain/note.dart';
 
 class DatabaseProvider {
   static const String _databaseName = 'notes.db';
-  static const int _databaseVersion = 2;
+  static const String _backupDatabaseName = 'notes_backup.db';
+  static const int _databaseVersion = 3;
   
   static const String tableNotes = 'notes';
   static const String tableFts = 'notes_fts';
+  static const String tableNoteVersions = 'note_versions';
   
   static Database? _database;
+  static Database? _backupDatabase;
   static bool _hasFts5Support = false;
   
   DatabaseProvider._();
@@ -34,6 +37,23 @@ class DatabaseProvider {
     );
   }
   
+  Future<Database> get backupDatabase async {
+    _backupDatabase ??= await _initBackupDatabase();
+    return _backupDatabase!;
+  }
+  
+  Future<Database> _initBackupDatabase() async {
+    final documentsDirectory = await getApplicationDocumentsDirectory();
+    final backupPath = path.join(documentsDirectory.path, _backupDatabaseName);
+    
+    return await openDatabase(
+      backupPath,
+      version: _databaseVersion,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
+  }
+  
   Future<void> _onCreate(Database db, int version) async {
     await db.execute('''
       CREATE TABLE $tableNotes (
@@ -43,6 +63,22 @@ class DatabaseProvider {
         tags TEXT NOT NULL,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
+      )
+    ''');
+    
+    // Version history table for dual backup system
+    await db.execute('''
+      CREATE TABLE $tableNoteVersions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        note_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        body_md TEXT NOT NULL,
+        tags TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        version_created_at INTEGER NOT NULL,
+        is_current INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (note_id) REFERENCES $tableNotes (id) ON DELETE CASCADE
       )
     ''');
     
@@ -89,11 +125,57 @@ class DatabaseProvider {
     if (oldVersion < 2) {
       // Version 2: No schema changes needed, body field name stays the same in DB for compatibility
     }
+    if (oldVersion < 3) {
+      // Version 3: Add note versions table for backup system
+      await db.execute('''
+        CREATE TABLE $tableNoteVersions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          note_id INTEGER NOT NULL,
+          title TEXT NOT NULL,
+          body_md TEXT NOT NULL,
+          tags TEXT NOT NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL,
+          version_created_at INTEGER NOT NULL,
+          is_current INTEGER NOT NULL DEFAULT 0,
+          FOREIGN KEY (note_id) REFERENCES $tableNotes (id) ON DELETE CASCADE
+        )
+      ''');
+    }
   }
   
   Future<int> insertNote(Note note) async {
     final db = await database;
-    return await db.insert(tableNotes, note.toMap());
+    final backupDb = await backupDatabase;
+    
+    try {
+      // Insert into main database
+      final noteId = await db.insert(tableNotes, note.toMap());
+      
+      // Create version record
+      final versionData = {
+        'note_id': noteId,
+        'title': note.title,
+        'body_md': note.body,
+        'tags': note.tags.join(','),
+        'created_at': note.createdAt.millisecondsSinceEpoch,
+        'updated_at': note.updatedAt.millisecondsSinceEpoch,
+        'version_created_at': DateTime.now().millisecondsSinceEpoch,
+        'is_current': 1,
+      };
+      
+      await db.insert(tableNoteVersions, versionData);
+      
+      // Backup to secondary database
+      final noteWithId = note.copyWith(id: noteId);
+      await backupDb.insert(tableNotes, noteWithId.toMap());
+      await backupDb.insert(tableNoteVersions, versionData);
+      
+      return noteId;
+    } catch (e) {
+      print('Error inserting note: $e');
+      rethrow;
+    }
   }
   
   Future<List<Note>> getAllNotes() async {
@@ -122,21 +204,154 @@ class DatabaseProvider {
   
   Future<int> updateNote(Note note) async {
     final db = await database;
-    return await db.update(
+    final backupDb = await backupDatabase;
+    
+    try {
+      // Store current version as backup before updating
+      await _createBackupVersion(note.id!);
+      
+      // Update main database
+      final result = await db.update(
+        tableNotes,
+        note.toMap(),
+        where: 'id = ?',
+        whereArgs: [note.id],
+      );
+      
+      // Create new current version record
+      final versionData = {
+        'note_id': note.id,
+        'title': note.title,
+        'body_md': note.body,
+        'tags': note.tags.join(','),
+        'created_at': note.createdAt.millisecondsSinceEpoch,
+        'updated_at': note.updatedAt.millisecondsSinceEpoch,
+        'version_created_at': DateTime.now().millisecondsSinceEpoch,
+        'is_current': 1,
+      };
+      
+      // Mark previous version as not current
+      await db.update(
+        tableNoteVersions,
+        {'is_current': 0},
+        where: 'note_id = ? AND is_current = 1',
+        whereArgs: [note.id],
+      );
+      
+      // Insert new current version
+      await db.insert(tableNoteVersions, versionData);
+      
+      // Update backup database
+      await backupDb.update(
+        tableNotes,
+        note.toMap(),
+        where: 'id = ?',
+        whereArgs: [note.id],
+      );
+      
+      await backupDb.update(
+        tableNoteVersions,
+        {'is_current': 0},
+        where: 'note_id = ? AND is_current = 1',
+        whereArgs: [note.id],
+      );
+      
+      await backupDb.insert(tableNoteVersions, versionData);
+      
+      return result;
+    } catch (e) {
+      print('Error updating note: $e');
+      rethrow;
+    }
+  }
+  
+  Future<void> _createBackupVersion(int noteId) async {
+    final db = await database;
+    
+    // Get current note data
+    final currentNotes = await db.query(
       tableNotes,
-      note.toMap(),
       where: 'id = ?',
-      whereArgs: [note.id],
+      whereArgs: [noteId],
     );
+    
+    if (currentNotes.isNotEmpty) {
+      final currentNote = currentNotes.first;
+      
+      // Create backup version record
+      final backupData = {
+        'note_id': noteId,
+        'title': currentNote['title'],
+        'body_md': currentNote['body_md'],
+        'tags': currentNote['tags'],
+        'created_at': currentNote['created_at'],
+        'updated_at': currentNote['updated_at'],
+        'version_created_at': DateTime.now().millisecondsSinceEpoch,
+        'is_current': 0,
+      };
+      
+      await db.insert(tableNoteVersions, backupData);
+      
+      // Clean up old versions (keep only last 2 per note)
+      await _cleanupOldVersions(noteId);
+    }
+  }
+  
+  Future<void> _cleanupOldVersions(int noteId) async {
+    final db = await database;
+    
+    // Keep only the most recent 3 versions (current + 2 backups)
+    await db.execute('''
+      DELETE FROM $tableNoteVersions 
+      WHERE note_id = ? AND id NOT IN (
+        SELECT id FROM $tableNoteVersions 
+        WHERE note_id = ? 
+        ORDER BY version_created_at DESC 
+        LIMIT 3
+      )
+    ''', [noteId, noteId]);
   }
   
   Future<int> deleteNote(int id) async {
     final db = await database;
-    return await db.delete(
-      tableNotes,
-      where: 'id = ?',
-      whereArgs: [id],
-    );
+    final backupDb = await backupDatabase;
+    
+    try {
+      // Store final backup before deletion
+      await _createBackupVersion(id);
+      
+      // Delete from main database (CASCADE will handle versions)
+      final result = await db.delete(
+        tableNotes,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      
+      // Delete versions from main database
+      await db.delete(
+        tableNoteVersions,
+        where: 'note_id = ?',
+        whereArgs: [id],
+      );
+      
+      // Delete from backup database
+      await backupDb.delete(
+        tableNotes,
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+      
+      await backupDb.delete(
+        tableNoteVersions,
+        where: 'note_id = ?',
+        whereArgs: [id],
+      );
+      
+      return result;
+    } catch (e) {
+      print('Error deleting note: $e');
+      rethrow;
+    }
   }
   
   Future<List<Note>> searchNotes(String keyword) async {
@@ -170,9 +385,16 @@ class DatabaseProvider {
   
   Future<void> close() async {
     final db = _database;
+    final backupDb = _backupDatabase;
+    
     if (db != null) {
       await db.close();
       _database = null;
+    }
+    
+    if (backupDb != null) {
+      await backupDb.close();
+      _backupDatabase = null;
     }
   }
   
@@ -191,10 +413,78 @@ class DatabaseProvider {
   Future<void> deleteDatabase() async {
     final documentsDirectory = await getApplicationDocumentsDirectory();
     final dbPath = path.join(documentsDirectory.path, _databaseName);
+    final backupPath = path.join(documentsDirectory.path, _backupDatabaseName);
+    
     final file = File(dbPath);
+    final backupFile = File(backupPath);
+    
     if (await file.exists()) {
       await file.delete();
     }
+    
+    if (await backupFile.exists()) {
+      await backupFile.delete();
+    }
+    
     _database = null;
+    _backupDatabase = null;
+  }
+  
+  // Get previous version of a note
+  Future<Note?> getPreviousVersion(int noteId) async {
+    final db = await database;
+    
+    final versions = await db.query(
+      tableNoteVersions,
+      where: 'note_id = ? AND is_current = 0',
+      whereArgs: [noteId],
+      orderBy: 'version_created_at DESC',
+      limit: 1,
+    );
+    
+    if (versions.isNotEmpty) {
+      final versionData = versions.first;
+      return Note(
+        id: versionData['note_id'] as int,
+        title: versionData['title'] as String,
+        body: versionData['body_md'] as String,
+        tags: (versionData['tags'] as String).split(',').where((tag) => tag.isNotEmpty).toList(),
+        createdAt: DateTime.fromMillisecondsSinceEpoch(versionData['created_at'] as int),
+        updatedAt: DateTime.fromMillisecondsSinceEpoch(versionData['updated_at'] as int),
+      );
+    }
+    
+    return null;
+  }
+  
+  // Restore from backup database if main is corrupted
+  Future<bool> restoreFromBackup() async {
+    try {
+      final documentsDirectory = await getApplicationDocumentsDirectory();
+      final dbPath = path.join(documentsDirectory.path, _databaseName);
+      final backupPath = path.join(documentsDirectory.path, _backupDatabaseName);
+      
+      final mainFile = File(dbPath);
+      final backupFile = File(backupPath);
+      
+      if (await backupFile.exists()) {
+        // Close current databases
+        await close();
+        
+        // Copy backup to main
+        await backupFile.copy(dbPath);
+        
+        // Reinitialize
+        _database = null;
+        _backupDatabase = null;
+        
+        return true;
+      }
+      
+      return false;
+    } catch (e) {
+      print('Error restoring from backup: $e');
+      return false;
+    }
   }
 }

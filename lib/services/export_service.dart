@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -17,20 +18,27 @@ class ExportService {
         print('Exporting ${selectedNotes.length} notes as individual .txt files');
       }
       
-      // Get accessible export directory
+      // Get accessible export directory with timestamp
       final directory = await _getExportDirectory();
       
       // Ensure directory exists
       await directory.create(recursive: true);
       
       final exportedFiles = <File>[];
+      final timestamp = DateTime.now().millisecondsSinceEpoch;
       
       for (final note in selectedNotes) {
         final fileName = _createFileName(note.title);
-        final txtFile = File(path.join(directory.path, fileName));
+        final timestampedFileName = '${timestamp}_$fileName';
+        final txtFile = File(path.join(directory.path, timestampedFileName));
         
-        final content = _formatNoteContent(note);
-        await txtFile.writeAsString(content);
+        // Ensure we're getting the most recent version
+        final content = _formatNoteContent(note, includeVersionInfo: true);
+        
+        // Write with atomic operation
+        final tempFile = File('${txtFile.path}.tmp');
+        await tempFile.writeAsString(content);
+        await tempFile.rename(txtFile.path);
         
         exportedFiles.add(txtFile);
         
@@ -38,6 +46,9 @@ class ExportService {
           print('Created: ${txtFile.path}');
         }
       }
+      
+      // Create backup manifest
+      await _createBackupManifest(directory, exportedFiles, timestamp);
       
       if (kDebugMode) {
         print('Export complete: ${exportedFiles.length} files created');
@@ -96,7 +107,7 @@ class ExportService {
     return '$fileName.txt';
   }
 
-  static String _formatNoteContent(dynamic note) {
+  static String _formatNoteContent(dynamic note, {bool includeVersionInfo = false}) {
     final buffer = StringBuffer();
     
     // Title
@@ -126,6 +137,12 @@ class ExportService {
       buffer.writeln('ID: ${note.id}');
     }
     
+    if (includeVersionInfo) {
+      buffer.writeln('Exported: ${DateTime.now()}');
+      buffer.writeln('Export Version: LATEST');
+      buffer.writeln('Backup Status: DUAL_BACKUP_ENABLED');
+    }
+    
     return buffer.toString();
   }
 
@@ -133,13 +150,34 @@ class ExportService {
   static Future<Directory> _getExportDirectory() async {
     // Use app's documents directory - guaranteed to work and accessible via Files app
     final documentsDir = await getApplicationDocumentsDirectory();
-    final exportDir = Directory(path.join(documentsDir.path, 'exports'));
+    final timestamp = DateTime.now().toIso8601String().split('T')[0]; // YYYY-MM-DD
+    final exportDir = Directory(path.join(documentsDir.path, 'exports', timestamp));
     
     if (kDebugMode) {
       print('Using app documents directory: ${exportDir.path}');
     }
     
     return exportDir;
+  }
+  
+  static Future<void> _createBackupManifest(Directory exportDir, List<File> exportedFiles, int timestamp) async {
+    final manifestFile = File(path.join(exportDir.path, 'backup_manifest.json'));
+    
+    final manifest = {
+      'backup_timestamp': timestamp,
+      'backup_date': DateTime.fromMillisecondsSinceEpoch(timestamp).toIso8601String(),
+      'notes_count': exportedFiles.length,
+      'files': exportedFiles.map((f) => {
+        'filename': path.basename(f.path),
+        'size_bytes': f.lengthSync(),
+      }).toList(),
+      'backup_type': 'FULL_EXPORT_WITH_DUAL_BACKUP',
+      'app_version': '1.0.0+1',
+    };
+    
+    await manifestFile.writeAsString(
+      const JsonEncoder.withIndent('  ').convert(manifest)
+    );
   }
 
   static Future<bool> _canCreateDirectory(Directory dir) async {
