@@ -215,6 +215,59 @@
             font-family: 'Courier New', monospace;
         }
 
+        .platform-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .platform-option {
+            background-color: #1a1a1a;
+            padding: 2rem;
+            border-radius: 8px;
+            border: 1px solid #4a4a4a;
+        }
+
+        .platform-option h4 {
+            color: #ffffff;
+            font-size: 1.3rem;
+            margin-bottom: 1rem;
+        }
+
+        .access-steps {
+            background-color: #0d1117;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #28a745;
+            margin-top: 1rem;
+        }
+
+        .access-steps p {
+            margin-bottom: 0.5rem;
+        }
+
+        .access-steps a,
+        .platform-option a {
+            color: #5a9fd4;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .access-steps a:hover,
+        .platform-option a:hover {
+            text-decoration: underline;
+        }
+
+        .coming-soon-info {
+            background-color: #0d1117;
+            padding: 1.5rem;
+            border-radius: 8px;
+            border-left: 4px solid #6c757d;
+            margin-top: 1rem;
+            color: #b8b8b8;
+        }
+
         footer {
             background-color: #2d2d2d;
             padding: 2rem 0;
@@ -275,6 +328,15 @@
             .get-access {
                 padding: 2rem;
             }
+
+            .platform-options {
+                grid-template-columns: 1fr;
+                gap: 1.5rem;
+            }
+
+            .platform-option {
+                padding: 1.5rem;
+            }
         }
     </style>
 </head>
@@ -301,9 +363,27 @@
         <div class="container">
             <div class="get-access">
                 <h3>Get Early Access</h3>
-                <p>Local Notes is currently in closed testing (invite only). Want to be invited for early access?</p>
-                <div class="email-info">
-                    <p>Email <strong>LocalNotesContact@gmail.com</strong> with the subject <strong>'Local Notes Tester - iOS/Android'</strong> to be added to the next wave.</p>
+                <p>Local Notes is currently in closed testing. Choose your platform to get started:</p>
+                
+                <div class="platform-options">
+                    <div class="platform-option">
+                        <h4>Android Testing</h4>
+                        <p>Follow these steps to access the Android beta (14-day testing period):</p>
+                        <div class="access-steps">
+                            <p><strong>Step 1:</strong> <a href="https://groups.google.com/g/local-notes-testing" target="_blank" rel="noopener">Join the Google Group</a></p>
+                            <p><strong>Step 2:</strong> <a href="https://play.google.com/apps/testing/com.brigbryu.localnotes" target="_blank" rel="noopener">Visit the Play Store Testing Page</a></p>
+                            <p><strong>Step 3:</strong> Click "Become a Tester" button on the testing page</p>
+                            <p><strong>Step 4:</strong> Download the app from Play Store (available for 14 days)</p>
+                        </div>
+                    </div>
+                    
+                    <div class="platform-option">
+                        <h4>iOS Testing</h4>
+                        <p>Coming Soon!</p>
+                        <div class="coming-soon-info">
+                            <p>iOS version is currently in development and will be available for testing soon.</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

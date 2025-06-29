@@ -1,50 +1,49 @@
 import 'dart:io';
-import 'dart:isolate';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as path;
-import 'package:archive/archive.dart';
+import 'package:share_plus/share_plus.dart';
 
 final exportServiceProvider = Provider<ExportService>((ref) {
   return ExportService();
 });
 
 class ExportService {
-  Future<File> createZip({required List<dynamic> selectedNotes}) async {
+  Future<List<File>> createTextFiles({required List<dynamic> selectedNotes}) async {
     try {
       if (kDebugMode) {
-        print('Exporting ${selectedNotes.length} notes');
+        print('Exporting ${selectedNotes.length} notes as individual .txt files');
       }
-      
-      // Run heavy I/O operations in isolate
-      final zipBytes = await Isolate.run(() => _createZipInIsolate(selectedNotes));
       
       // Get accessible export directory
       final directory = await _getExportDirectory();
-      final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final fileName = 'local_notes_export_$timestamp.zip';
-      final zipFile = File(path.join(directory.path, fileName));
       
       // Ensure directory exists
       await directory.create(recursive: true);
       
-      if (kDebugMode) {
-        print('Writing ${zipBytes.length} bytes to: ${zipFile.path}');
+      final exportedFiles = <File>[];
+      
+      for (final note in selectedNotes) {
+        final fileName = _createFileName(note.title);
+        final txtFile = File(path.join(directory.path, fileName));
+        
+        final content = _formatNoteContent(note);
+        await txtFile.writeAsString(content);
+        
+        exportedFiles.add(txtFile);
+        
+        if (kDebugMode) {
+          print('Created: ${txtFile.path}');
+        }
       }
       
-      await zipFile.writeAsBytes(zipBytes);
-      
-      // Verify file was written
-      final exists = await zipFile.exists();
-      final fileSize = exists ? await zipFile.length() : 0;
-      
       if (kDebugMode) {
-        print('Export complete: ${zipFile.path}');
-        print('File exists: $exists, Size: $fileSize bytes');
+        print('Export complete: ${exportedFiles.length} files created');
       }
       
-      return zipFile;
+      return exportedFiles;
     } catch (e) {
       if (kDebugMode) {
         print('Export error: $e');
@@ -53,48 +52,48 @@ class ExportService {
     }
   }
 
-  static List<int> _createZipInIsolate(List<dynamic> notes) {
-    final archive = Archive();
-    
-    // Add individual note files
-    for (final note in notes) {
-      final title = _slugifyTitle(note.title);
-      final fileName = '$title.txt';
-      
-      final content = _formatNoteContent(note);
-      final file = ArchiveFile(fileName, content.length, content.codeUnits);
-      archive.addFile(file);
+  Future<bool> shareExportFiles({required List<File> exportFiles}) async {
+    try {
+      if (Platform.isIOS) {
+        // Use iOS native share sheet for multiple files
+        final xFiles = exportFiles.map((file) => XFile(file.path)).toList();
+        final result = await Share.shareXFiles(
+          xFiles,
+          text: 'Local Notes Export - ${exportFiles.length} note${exportFiles.length > 1 ? 's' : ''}',
+          subject: 'Notes Backup - ${DateTime.now().toString().split(' ')[0]}',
+        );
+        return result.status == ShareResultStatus.success;
+      } else {
+        // For Android, use the existing file path approach
+        // This maintains the current Android behavior unchanged
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Share error: $e');
+      }
+      return false;
     }
-    
-    // Add a summary file
-    final summary = _createSummaryContent(notes);
-    final summaryFile = ArchiveFile('_export_summary.txt', summary.length, summary.codeUnits);
-    archive.addFile(summaryFile);
-    
-    // Create ZIP
-    final zipEncoder = ZipEncoder();
-    return zipEncoder.encode(archive)!;
   }
 
-  static String _slugifyTitle(String title) {
-    if (title.isEmpty) return 'untitled';
+  static String _createFileName(String title) {
+    if (title.isEmpty) return 'untitled.txt';
     
-    // Replace special characters with underscores
-    String slug = title
-        .toLowerCase()
-        .replaceAll(RegExp(r'[^a-z0-9\s-]'), '')
-        .replaceAll(RegExp(r'\s+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
+    // Replace invalid filename characters
+    String fileName = title
+        .replaceAll(RegExp(r'[<>:"/|?*\\]'), '_')  // Invalid filename chars
+        .replaceAll(RegExp(r'\s+'), '_')           // Multiple spaces to single underscore
+        .replaceAll(RegExp(r'_+'), '_')            // Multiple underscores to single
+        .replaceAll(RegExp(r'^_|_$'), '');         // Remove leading/trailing underscores
     
-    if (slug.isEmpty) return 'untitled';
+    if (fileName.isEmpty) fileName = 'untitled';
     
-    // Limit length
-    if (slug.length > 50) {
-      slug = slug.substring(0, 50);
+    // Limit length (leaving room for .txt extension)
+    if (fileName.length > 100) {
+      fileName = fileName.substring(0, 100);
     }
     
-    return slug;
+    return '$fileName.txt';
   }
 
   static String _formatNoteContent(dynamic note) {
@@ -130,44 +129,6 @@ class ExportService {
     return buffer.toString();
   }
 
-  static String _createSummaryContent(List<dynamic> notes) {
-    final buffer = StringBuffer();
-    final now = DateTime.now();
-    
-    buffer.writeln('Local Notes Export Summary');
-    buffer.writeln('=' * 25);
-    buffer.writeln();
-    buffer.writeln('Export Date: $now');
-    buffer.writeln('Total Notes: ${notes.length}');
-    buffer.writeln();
-    
-    buffer.writeln('Exported Notes:');
-    buffer.writeln('-' * 15);
-    
-    for (int i = 0; i < notes.length; i++) {
-      final note = notes[i];
-      final title = note.title.isEmpty ? 'Untitled' : note.title;
-      buffer.writeln('${i + 1}. $title');
-      
-      if (note.tags != null && (note.tags as List).isNotEmpty) {
-        buffer.writeln('   Tags: ${(note.tags as List<String>).join(', ')}');
-      }
-      
-      if (note.body.isNotEmpty) {
-        final preview = note.body.length > 100 
-            ? '${note.body.substring(0, 100)}...'
-            : note.body;
-        buffer.writeln('   Preview: ${preview.replaceAll('\n', ' ')}');
-      }
-      
-      buffer.writeln();
-    }
-    
-    buffer.writeln();
-    buffer.writeln('Generated by Local Notes app');
-    
-    return buffer.toString();
-  }
 
   static Future<Directory> _getExportDirectory() async {
     // Use app's documents directory - guaranteed to work and accessible via Files app

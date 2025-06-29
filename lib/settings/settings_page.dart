@@ -170,32 +170,51 @@ class SettingsPage extends ConsumerWidget {
       if (selectedNotes == null || selectedNotes.isEmpty) return;
 
       final exportService = ref.read(exportServiceProvider);
-      final exportedFile = await exportService.createZip(selectedNotes: selectedNotes);
+      final exportedFiles = await exportService.createTextFiles(selectedNotes: selectedNotes);
       
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Exported ${selectedNotes.length} notes successfully!'),
-                const SizedBox(height: 4),
-                Text(
-                  'Location: ${exportedFile.path}',
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w300),
-                ),
-              ],
+        if (Platform.isIOS) {
+          // On iOS, show share sheet immediately
+          final shareSuccess = await exportService.shareExportFiles(exportFiles: exportedFiles);
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(shareSuccess 
+                  ? 'Exported ${selectedNotes.length} note${selectedNotes.length > 1 ? 's' : ''} successfully!'
+                  : 'Export completed but sharing failed'),
+              backgroundColor: shareSuccess ? Colors.green : Colors.orange,
+              duration: const Duration(seconds: 4),
             ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 8),
-            action: SnackBarAction(
-              label: 'COPY PATH',
-              textColor: Colors.white,
-              onPressed: () => _copyPathToClipboard(context, exportedFile.path),
+          );
+        } else {
+          // On Android, maintain existing behavior with first file path
+          final firstFile = exportedFiles.isNotEmpty ? exportedFiles.first : null;
+          final exportDir = firstFile?.parent.path ?? 'Unknown location';
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Exported ${selectedNotes.length} note${selectedNotes.length > 1 ? 's' : ''} successfully!'),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Location: $exportDir',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w300),
+                  ),
+                ],
+              ),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 8),
+              action: SnackBarAction(
+                label: 'COPY PATH',
+                textColor: Colors.white,
+                onPressed: () => _copyPathToClipboard(context, exportDir),
+              ),
             ),
-          ),
-        );
+          );
+        }
       }
     } catch (e) {
       if (context.mounted) {
